@@ -21,6 +21,7 @@ cd ..
 B="python3 novelbot/bot.py -g eth"
 $B rules add longevity kind=rule text="Pilgrim's Blessing, Longevity: immune to ordinary disease and poison; sleeping greatly increases regeneration (replaces 'sleep = normal healing only')" --write
 $B rules add death_save kind=rule text="At 0 HP with nobody to stabilise him: one death save, d20 vs DC 11, with a bonus only for something already established in the scene. Decide whether this stands beside the written 0 HP rule" --write
+$B rules add system_rewards kind=lesson text="The System rewards what Mori does without being asked. After every scene, check for a hidden quest he has already fulfilled and pay it then. (The 'Courage to Stay' reward only happened because the player pointed out it was missing.)" --write
 $B rules add xp_sources kind=rule text="XP comes from kills, quests, trials survived and fights won without killing" --write
 ```
 
