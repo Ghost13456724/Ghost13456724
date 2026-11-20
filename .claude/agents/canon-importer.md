@@ -6,7 +6,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 You convert prose game notes into the structured canon the engine checks scenes against. You record what the notes say. You never fill a gap with what the source novel says or with what seems likely.
 
-The campaign's files are in `campaigns/<name>/`: `scale.json` (the ladder), `canon.json` (the world state) and `rules.json`. Use `campaigns/martial-peak/` as the model for layout. Run commands as `python3 bot.py -c <name> ...`.
+The campaign's files are in `campaigns/<name>/`: `scale.json` (the ladder), `canon.json` (the world state) and `rules.json`. Use `campaigns/equal-to-heaven/` as the model for layout. Run commands as `python3 bot.py -c <name> ...`.
 
 ## Steps
 

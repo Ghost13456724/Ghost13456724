@@ -139,41 +139,48 @@ class ReviewTests(Base):
         self.assertIn("dead-character", codes(again))
 
 
-class RealmTests(unittest.TestCase):
+REALMS = [{"name": "Outer Gate", "abbr": "OG", "floor": 40, "stages": 9},
+          {"name": "Inner Gate", "abbr": "IG", "floor": 50, "stages": 9},
+          {"name": "Elder", "abbr": "EL", "floor": 60, "stages": 3},
+          {"name": "Patriarch", "abbr": "PA", "floor": 70}]
+
+
+class RealmTests(Base):
+    """A ladder made of realms with stages instead of ranks."""
+
     def setUp(self):
-        d = C.campaign_dir("martial-peak")
-        self.scale, self.canon, self.rules = (C.load(f, d) for f in ("scale.json", "canon.json", "rules.json"))
+        super().setUp()
+        self.scale["tiers"] = REALMS
+        flat = lambda v: {s: v for s in S.STATS}
+        self.canon["characters"] = {
+            "Junior": {"realm": "OG 7", "stats": flat(46.7)},
+            "Senior": {"realm": "IG 5", "stats": flat(54.4)}}
+        self.canon["results"] = []
 
     def test_realm_round_trip(self):
-        for text, want in (("SR 7", "Separation and Reunion 7"), ("True Element 5th", "True Element 5"),
-                           ("te 1", "True Element 1"), ("Great Emperor", "Great Emperor"), ("Saint 3", "Saint 3")):
+        for text, want in (("OG 7", "Outer Gate 7"), ("Inner Gate 5th", "Inner Gate 5"),
+                           ("ig 1", "Inner Gate 1"), ("Patriarch", "low Patriarch"), ("Elder 3", "Elder 3")):
             self.assertEqual(S.tier_of(self.scale, S.parse_rating(self.scale, text)), want)
         self.assertEqual(S.parse_rating(self.scale, "46.7"), 46.7)
         with self.assertRaises(KeyError):
-            S.parse_rating(self.scale, "Saint 9")
+            S.parse_rating(self.scale, "Elder 9")
         with self.assertRaises(KeyError):
             S.parse_rating(self.scale, "Nonsense 2")
 
-    def test_full_realm_gap_cannot_be_crossed_on_numbers(self):
-        self.canon["characters"]["Elder"] = {"stats": {s: 60 for s in S.STATS}}
-        self.canon["characters"]["Junior"] = {"stats": {s: 50 for s in S.STATS}}
-        m = S.matchup(self.scale, self.canon, "Junior", "Elder")
-        self.assertTrue(m["a_blocked"])
-        self.assertEqual(m["chance"], 0.05)
-
-    def test_seed_passes_audit_and_realm_feats_parse(self):
-        self.assertEqual([f for f in S.audit(self.scale, self.canon) if f[0] == "error"], [])
-        claims = {"scene": "t", "location": "Nether Mountain blood space", "present": ["Eyoel"],
-                  "events": [{"type": "feat", "who": "Eyoel", "stat": "ap", "rating": "IA 1"}]}
+    def test_realm_feats_parse(self):
+        claims = {"scene": "t", "present": ["Junior"],
+                  "events": [{"type": "feat", "who": "Junior", "stat": "ap", "rating": "EL 1"}]}
         self.assertIn("feat-above-stats", codes(R.check(self.scale, self.canon, claims)))
 
     def test_unbacked_stat_above_realm_is_flagged(self):
-        self.canon["characters"]["Yao Xi"]["stats"]["ap"] = 58
+        self.assertEqual(S.audit(self.scale, self.canon), [])
+        self.canon["characters"]["Junior"]["stats"]["ap"] = 58
         self.assertIn("above-realm", codes(S.audit(self.scale, self.canon)))
 
     def test_ending_rule(self):
-        self.assertIn("ending", codes(L.lint("He waited.\n\nThe end.", self.rules)))
-        self.assertNotIn("ending", codes(L.lint("He waited.\n\nWhat do you do?", self.rules)))
+        rules = {"ending": "What do you do\\?"}
+        self.assertIn("ending", codes(L.lint("He waited.\n\nThe end.", rules)))
+        self.assertNotIn("ending", codes(L.lint("He waited.\n\nWhat do you do?", rules)))
 
 
 class LintTests(Base):

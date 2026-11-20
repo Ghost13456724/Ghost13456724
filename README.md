@@ -32,18 +32,17 @@ python3 -m unittest discover -s tests
 Each game gets a folder under `campaigns/` with its own ladder, canon and rules. Pick one with `-c`:
 
 ```
-python3 bot.py -c martial-peak ladder
-python3 bot.py -c martial-peak rate SR 7           # realm and stage -> rating (46.7)
-python3 bot.py -c martial-peak compare Eyoel "Yao He"
-python3 bot.py -c martial-peak new "Han Xiao Qi" "SR 5" --edge 1
-python3 bot.py -c martial-peak rules               # house rules the reviewer checks by reading
+python3 bot.py -c equal-to-heaven status
+python3 bot.py -c equal-to-heaven rules            # house rules the reviewer checks by reading
+python3 bot.py -c equal-to-heaven new "Jin Mori" "E-rank" --edge 2
+python3 bot.py -c equal-to-heaven compare "Jin Mori" "<foe>"
 ```
 
-`campaigns/martial-peak/` is a starting point for the Martial Peak game: the realm ladder (ten points per major realm, split across its stages) and a handful of sheets seeded from one memory note. Stats above a realm baseline there are first estimates, and unknown stages are marked as placeholders.
+`campaigns/equal-to-heaven/` holds the Equal to Heaven game: the ladder from E-rank to past universal scale, the dice bands, and the house rules from its GM guide. Its canon starts empty; run the `canon-importer` agent over the game's files and log to fill it.
 
-To start another campaign, copy that folder, edit the tiers in `scale.json` (`name`, `abbr`, `floor`, and `stages` for a realm ladder), empty `canon.json`, and run the `canon-importer` agent over the game's notes.
+To start another campaign, copy that folder, edit the tiers in `scale.json`, empty `canon.json`, and run the importer over that game's notes.
 
-On a realm ladder a character's `realm` is the baseline. A stat above it needs a feat, or `audit` reports it as `above-realm`.
+A ladder can also be made of realms with stages: give a tier `abbr` and `stages`, then write ratings as `"IG 5"` and convert with `bot.py rate IG 5`. On a realm ladder a character's `realm` is the baseline. A stat above it needs a feat, or `audit` reports it as `above-realm`.
 
 ## How power scaling works
 
@@ -111,7 +110,7 @@ In Claude Code, from this repository:
 - "Use the scene-reviewer agent on `drafts/s09.md`" returns PASS, REVISE or REJECT with the smallest fix for each finding. It never commits and never edits canon.
 - "Ask the powerscaler: can Seorin beat the Ogre in Second Breath?" or "Give me stats for a rival who should be a hard fight for Seorin."
 
-- "Use the canon-importer agent on these notes for the martial-peak campaign" turns prose notes into sheets, feats, facts and results, and lists every gap it had to leave.
+- "Use the canon-importer agent on these notes for the equal-to-heaven campaign" turns prose notes into sheets, feats, facts and results, and lists every gap it had to leave.
 
 ## Files
 

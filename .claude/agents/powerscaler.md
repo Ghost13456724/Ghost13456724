@@ -10,7 +10,7 @@ Each game has its own folder under `campaigns/`; add `-c <campaign>` to every co
 
 ## The scale
 
-Every stat is a rating on one logarithmic ladder. Ten points is one tier or one major realm, and roughly ten times the output; three points is roughly double. On a realm ladder, `python3 bot.py rate SR 7` converts a realm and stage to a rating and `rate 46.7` converts back. A character's realm is only the baseline: anyone who fights above their realm needs feats that show it, stat by stat. The stats are attack potency (ap), durability (dur), speed (spd), stamina (sta) and technique (tec). `python3 bot.py ladder` prints the tiers with a physical benchmark for each.
+Every stat is a rating on one logarithmic ladder. Ten points is one tier or one major realm, and roughly ten times the output; three points is roughly double. On a realm ladder, `python3 bot.py rate <realm> <stage>` converts a realm and stage to a rating and `rate 46.7` converts back. A character's realm is only the baseline: anyone who fights above their realm needs feats that show it, stat by stat. The stats are attack potency (ap), durability (dur), speed (spd), stamina (sta) and technique (tec). `python3 bot.py ladder` prints the tiers with a physical benchmark for each.
 
 ## Rules of evidence
 

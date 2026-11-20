@@ -28,7 +28,7 @@ def _width(tiers, i):
 
 
 def tier_of(scale, rating):
-    """Name where a rating falls: 'mid B-rank', or 'True Element 5' on a staged ladder."""
+    """Name where a rating falls: 'mid B-rank', or 'Inner Gate 5' on a staged ladder."""
     tiers = _tiers(scale)
     if rating < tiers[0]["floor"]:
         return f"below {tiers[0]['name']}"
@@ -43,7 +43,7 @@ def tier_of(scale, rating):
 
 
 def parse_rating(scale, text):
-    """Turn 46.7, 'SR 7', 'True Element 5th' or 'B-rank' into a rating."""
+    """Turn 46.7, 'IG 5', 'Inner Gate 5th' or 'B-rank' into a rating."""
     if isinstance(text, (int, float)):
         return text
     text = str(text).strip()

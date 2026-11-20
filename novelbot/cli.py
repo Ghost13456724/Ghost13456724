@@ -180,7 +180,7 @@ def main(argv=None):
     add("ladder", cmd_ladder, "the tier ladder and the current ranking")
     sp = add("show", cmd_show, "one character's sheet and the evidence behind it")
     sp.add_argument("name"); sp.add_argument("--form")
-    sp = add("rate", cmd_rate, "convert between a rating and a tier or realm, e.g. `rate SR 7` or `rate 46.7`")
+    sp = add("rate", cmd_rate, "convert between a rating and a tier or realm, e.g. `rate B-rank` or `rate 46.7`")
     sp.add_argument("rating", nargs="+")
     sp = add("new", cmd_new, "add a character sheet from a tier or realm")
     sp.add_argument("name"); sp.add_argument("realm"); sp.add_argument("--edge", type=float, default=0)
