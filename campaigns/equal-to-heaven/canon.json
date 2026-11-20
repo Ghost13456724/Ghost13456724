@@ -1,0 +1,12 @@
+{
+  "clock": {
+    "day": 0
+  },
+  "rung": 0,
+  "source": "Empty starting canon. Fill it from ledger.json, foes.json and LOG.md with the canon-importer agent.",
+  "abilities": {},
+  "facts": {},
+  "characters": {},
+  "results": [],
+  "scenes": []
+}
