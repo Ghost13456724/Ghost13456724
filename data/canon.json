@@ -1,0 +1,70 @@
+{
+  "clock": {"day": 12},
+  "rung": 1,
+  "abilities": {
+    "Binding Sutra": {"kind": "seal", "potency": 48, "bypasses_durability": true, "cost": "caster cannot move while it holds"},
+    "Iron Body": {"kind": "buff", "potency": 30}
+  },
+  "facts": {
+    "gate-keeper-weakness": {"text": "the Gate Ogre's hide is thin behind the left knee", "rung": null},
+    "master-is-alive": {"text": "Master Yun faked his death", "rung": 3}
+  },
+  "characters": {
+    "Han Seorin": {
+      "aliases": ["Seorin", "the staff girl"],
+      "status": "alive",
+      "location": "Cheongsong Gate",
+      "stats": {"ap": 24, "dur": 21, "spd": 26, "sta": 22, "tec": 30},
+      "forms": {"Second Breath": {"mods": {"ap": 6, "spd": 6}, "cost": "collapses for a day afterwards"}},
+      "feats": [
+        {"stat": "ap", "rating": 24, "desc": "split a delivery truck with a staff swing", "scene": "s03"},
+        {"stat": "dur", "rating": 20, "desc": "walked off being thrown through a wall", "scene": "s04"},
+        {"stat": "spd", "rating": 26, "desc": "knocked three arrows out of the air", "scene": "s05"},
+        {"stat": "sta", "rating": 22, "desc": "fought a full gate clear without rest", "scene": "s05"},
+        {"stat": "tec", "rating": 30, "desc": "out-fenced a B-rank instructor", "scene": "s06"}
+      ],
+      "abilities": ["Iron Body"],
+      "items": ["ironwood staff", "low-grade healing draught"],
+      "knows": [],
+      "conditions": [{"name": "cracked rib", "mods": {"dur": -2, "sta": -2}, "scene": "s07"}]
+    },
+    "Baek Dojin": {
+      "aliases": ["Dojin"],
+      "status": "alive",
+      "location": "Cheongsong Gate",
+      "stats": {"ap": 33, "dur": 31, "spd": 30, "sta": 32, "tec": 26},
+      "feats": [
+        {"stat": "ap", "rating": 33, "desc": "collapsed a two-storey house with one strike", "scene": "s02"},
+        {"stat": "dur", "rating": 31, "desc": "took a rifle volley without bleeding", "scene": "s02"},
+        {"stat": "spd", "rating": 30, "desc": "sidestepped pistol fire", "scene": "s06"},
+        {"stat": "sta", "rating": 32, "desc": "held a gate alone for six hours", "scene": "s02"},
+        {"stat": "tec", "rating": 26, "desc": "solid academy swordsmanship", "kind": "stated", "scene": "s01"}
+      ],
+      "abilities": [],
+      "items": ["guild longsword"],
+      "knows": ["gate-keeper-weakness"],
+      "conditions": []
+    },
+    "Gate Ogre": {
+      "aliases": ["the Ogre"],
+      "status": "alive",
+      "location": "Cheongsong Gate",
+      "stats": {"ap": 38, "dur": 40, "spd": 22, "sta": 40, "tec": 8},
+      "resist": {"seal": 50},
+      "feats": [
+        {"stat": "ap", "rating": 38, "desc": "crushed an armored truck flat", "scene": "s06"},
+        {"stat": "dur", "rating": 40, "desc": "ignored an anti-tank round", "scene": "s06"},
+        {"stat": "spd", "rating": 22, "desc": "caught a fleeing C-rank scout", "scene": "s06"},
+        {"stat": "sta", "rating": 40, "desc": "has not rested in the three days the gate has stood open", "kind": "stated", "scene": "s06"}
+      ],
+      "abilities": [],
+      "items": [],
+      "knows": [],
+      "conditions": []
+    }
+  },
+  "results": [
+    {"winner": "Baek Dojin", "loser": "Han Seorin", "conditions": [], "scene": "s06"}
+  ],
+  "scenes": ["s01", "s02", "s03", "s04", "s05", "s06", "s07"]
+}

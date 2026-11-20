@@ -1,0 +1,11 @@
+{
+  "min_words": 150,
+  "max_words": 1200,
+  "max_paragraph_words": 140,
+  "banned_terms": ["constellation", "dokkaebi"],
+  "options": {"min": 3, "max": 4, "free_choice": "something else"},
+  "weak_phrases": ["suddenly", "seemed to", "began to", "started to", "couldn't help but", "let out a breath"],
+  "weak_limit": 2,
+  "repeat_floor": 6,
+  "repeat_ratio": 0.012
+}

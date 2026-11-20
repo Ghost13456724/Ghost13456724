@@ -1,0 +1,12 @@
+{
+  "scene": "s08",
+  "day": 12,
+  "location": "Cheongsong Gate",
+  "present": ["Han Seorin", "Baek Dojin", "Gate Ogre"],
+  "events": [
+    {"type": "knows", "who": "Seorin", "fact": "gate-keeper-weakness"},
+    {"type": "feat", "who": "Seorin", "stat": "ap", "rating": 41, "desc": "her staff punches through the Ogre's chest"},
+    {"type": "fight", "winner": "Seorin", "loser": "Gate Ogre", "conditions": [], "rolled": false},
+    {"type": "uses_item", "who": "Seorin", "item": "greater healing draught"}
+  ]
+}

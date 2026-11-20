@@ -1,0 +1,17 @@
+{
+  "scene": "s08",
+  "day": 12,
+  "location": "Cheongsong Gate",
+  "present": ["Han Seorin", "Baek Dojin", "Gate Ogre"],
+  "events": [
+    {"type": "learns", "who": "Seorin", "fact": "gate-keeper-weakness"},
+    {"type": "knows", "who": "Seorin", "fact": "gate-keeper-weakness"},
+    {"type": "fight", "winner": "Seorin", "loser": "Gate Ogre", "winner_form": "Second Breath",
+     "conditions": ["Dojin shouts the weak point and pins the Ogre's arm", "strike lands behind the left knee, then the throat once it falls"],
+     "cost": "Second Breath backlash: Seorin is out for a day; Dojin's sword arm is broken", "rolled": true},
+    {"type": "injury", "who": "Seorin", "name": "Second Breath backlash", "mods": {"ap": -6, "spd": -6, "sta": -8}},
+    {"type": "injury", "who": "Dojin", "name": "broken sword arm", "mods": {"ap": -6, "tec": -8}},
+    {"type": "uses_item", "who": "Seorin", "item": "low-grade healing draught", "consumed": true},
+    {"type": "death", "who": "Gate Ogre"}
+  ]
+}
