@@ -158,8 +158,9 @@ def check(game, text, turn=False):
     clue_data = CL.load(game)
     watch = game.json("secrets_watch.json", []) + CL.watch_list(clue_data)
     rung = max([clue_data.get("rung", 0)] + [int(x) for line in game.log for x in re.findall(r"rung (\d+)", line)])
-    from . import rulings as RU
+    from . import rulings as RU, tech as TE
     finds += RU.scene_findings(RU.load(game), lines)
+    finds += TE.scene_findings(TE.load(game), [n.title() for n in technique_levels(game)], lines)
     if game.text("people.json"):
         finds += PE.scene_findings(PE.load(game), text, lines)
     for w in watch:

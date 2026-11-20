@@ -22,5 +22,11 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 3. `python3 bot.py -g F world status --gm`. Give the GM the fresh traces, each with one suggestion of where Mori could meet it in the next scenes (a phone, a market stall, a hospital corridor). When a trace is used in a scene, mark it: `python3 bot.py -g F world seen <trace id> --write`.
 4. If a faction has nothing planned, write its next steps. If nothing at all is scheduled for the next week, the pace has stalled: add something with a date.
 
+## Planned beats
+The arc card's beats "happen unless Mori changes them". `F/beats.json` records which have.
+- Once per arc: `python3 bot.py -g F beats init --write`, then mark everything already played.
+- After each scene: `python3 bot.py -g F beats mark <id> delivered --write`, or `changed "<what the player did instead>"`, or `skipped "<why it no longer happens>"`.
+- `python3 bot.py -g F beats status --gm` lists what is pending. An item past its window is a promise the story made and has not kept: deliver it late in a way that fits, or mark it with the reason. World events among the pending items belong in a faction's steps, so they fire on their own.
+
 ## Output
 At most 8 lines: what happened off-screen today (one line each, GM eyes only), the traces ready to surface, and any faction you gave new steps.

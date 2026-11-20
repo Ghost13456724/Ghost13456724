@@ -19,7 +19,8 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 4. Run `python3 bot.py -g F book apply <delta> ` and read the plan. If it reports an error, fix the delta, not the files. Then run it again with `--write`.
 5. Run `python3 bot.py -g F sync`. It must come back CLEAN. If it does not, run `python3 bot.py -g F book fix --write` for the certain repairs, and report anything left.
 6. Hand the scene text to the ARCHIVIST step: `python3 bot.py -g F archive add <scene file> --choice "<the player's choice>" --write`. If a once-a-day item was used or Mori lost an exchange, record it (`rules use <id> --write`, `rules bump adaptation <foe> --write`).
-7. Save slots: use `python3 bot.py -g F book save <name>` and `book load <name>`, never bare `gm.py save`, so the people, clue and faction files travel with the save.
+7. Run `python3 bot.py -g F ahead`. If it reports a FAIL (something coming that he cannot survive or afford as he is), tell the GM now, with the "honest ways back" it lists. The answer is never to change a number: it is to make sure the next scene puts a real way out in front of the player.
+8. Save slots: use `python3 bot.py -g F book save <name>` and `book load <name>`, never bare `gm.py save`, so the people, clue and faction files travel with the save.
 
 ## Output
 At most 6 lines: what changed (HP, money, items, injuries, people, events), then `sync: CLEAN` or the findings left. Never edit the game's JSON by hand, and never touch GM_SECRETS, the bible or the arc cards.

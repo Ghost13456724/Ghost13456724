@@ -11,6 +11,10 @@ A set of helper bots for novel-style text RPGs that run on a `gm.py` game folder
 7. **Clue ladder keeper.** Clues before truths, one rung at a time.
 8. **Rulings and lessons keeper.** Mid-play rulings and the player's corrections, turned into counters and checks.
 9. **Archivist.** Every scene saved in full, and the story exported as a book.
+10. **Arsenal and fight referee.** The player chooses the intent; Mori picks the best move he owns.
+11. **Quest log.** Tasks, rewards and prices; experience for more than kills.
+12. **Beat tracker.** Which planned story beats were delivered, changed or skipped.
+13. **Lookahead.** What is coming that he cannot survive or afford, and the honest ways back.
 
 Every combat number comes from the game folder's own `gm.py`, so the bots cannot disagree with the engine the game is played with.
 
@@ -50,6 +54,11 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 | `rules scan / list / import <file> / add / set / rm` | Harvest rulings and corrections from the log; review and edit them |
 | `rules mods <foe>` / `bump <id> <foe>` / `reset <id> <foe>` / `use <id>` | The modifier to pass to the next roll; grow or clear a bonus; spend a once-a-day item |
 | `rules dice` / `rules audit` | Luck and difficulty report; skills with no number, rolls not applied, unreviewed rulings |
+| `tech init / list / install` | Technique cards; `install` makes them callable in gm.py |
+| `move start <foe>` / `attack` / `defend` / `read` / `result ...` / `end` | Fight referee: the move Mori uses and the exact gm.py line |
+| `quest list / add / step / done / fail / sizes` | Quest log (`--gm` shows secret quests) |
+| `beats init / status / mark <id> <state> [note]` | Planned story beats (`--gm` shows the text) |
+| `ahead [days]` | Lookahead |
 | `archive add <file> [--choice --title --chapter]` | Save a scene in full |
 | `archive book [--raw]` / `list` / `recap [n]` | Build `BOOK.md` and `BOOK.html`; list scenes; "previously on" |
 
@@ -112,9 +121,27 @@ Once a delta has been applied, `STATE_NOW.md` is rebuilt from the files on every
 
 `archive add` stores a scene exactly as the player read it under `archive/scenes/`, with its day, date, chapter, the choice that followed and a one-line summary. `archive book` builds `archive/BOOK.md` and a phone-friendly `archive/BOOK.html`: dice lines and option menus are removed, System messages are kept, and each choice appears as one line (`--raw` keeps everything). Only text the player has seen goes in. Loading an older save sets later scenes aside without deleting them.
 
+### Arsenal and fight referee
+
+The player never picks the flavour of kick. `techniques.json` holds a card for each technique: what it does in gm.py terms, what it needs on the sheet, what it costs, and when it applies (only the first time a foe sees it, only after Mori has read the foe, only on an opening). `move attack` tries every technique he owns against gm.py's numbers for this foe at this moment and prints the one he uses, the reason, and the exact `gm.py roll ... use=<technique> --apply` line. `move result` records how it went, which is what makes a foe wise to a trick, opens counters after a successful read, puts a foe off balance, and grows adaptation after a lost exchange. One exchange is one roll for his action and one for his defence. The fight forecast uses the arsenal too.
+
+`tech init` writes five **proposed** cards for the techniques now on the sheet (Three-Stage Hoechook, Lowest Hoechook, Counter Hoechook, X Guard, Erase the Rhythm). Their numbers are a starting proposal, not canon: edit `techniques.json`. The scene check warns when an option asks the player to choose a technique.
+
+### Quest log
+
+`quests.json` holds each quest's kind, System text, steps, deadline, reward and price. A reward's XP is a size (small 15%, medium 35%, large 60%, trial 100% of the current level), so quests, trials and fights won without killing all pay and stay worth doing as he levels. `quest done` prints the System window and pays through gm.py, so level-ups and full restores follow the engine's rules. Secret quests stay off the player's list until they complete.
+
+### Beat tracker
+
+`beats init` reads every beat and bullet from the arc cards with its day window and the level the plan expects. Each item is pending, delivered, changed or skipped; changed and skipped need a reason. `beats status` warns about items past their window and still pending.
+
+### Lookahead
+
+`ahead` reads the next few days: Mori's condition, which foes he can beat right now compared with rested, the Daily Discipline and what the Penalty Zone would do to him as he is, deadlines against his money, quests due, faction steps coming, and the XP the arc plan needs per day. It ends with the honest ways back (the daily, the XP to a level-up, people who can treat him, items, open quests). It changes nothing.
+
 ## The bots
 
-`bots/` holds seven briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK`, `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
+`bots/` holds nine briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK` (which also keeps the beats), `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`, `FIGHT_REFEREE`, `QUEST_KEEPER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
 
 First-time setup in the game chat:
 
@@ -125,6 +152,11 @@ python3 novelbot/bot.py -g eth people scan --write    # trust changes already in
 python3 novelbot/bot.py -g eth clues init --write     # ladder and clue lists from the GM files
 python3 novelbot/bot.py -g eth world init --write     # public factions from the bible
 python3 novelbot/bot.py -g eth rules scan --write     # rulings and corrections already in the log
+python3 novelbot/bot.py -g eth rules add xp_sources kind=rule text="XP comes from kills, quests, trials survived and fights won without killing (bible X; replaces the D2 kills-only ruling)" --write
+python3 novelbot/bot.py -g eth tech init --write      # proposed technique cards
+python3 novelbot/bot.py -g eth tech install --write   # make them callable in gm.py
+python3 novelbot/bot.py -g eth beats init --write     # planned beats from the arc cards
+python3 novelbot/bot.py -g eth ahead                  # what is coming
 ```
 
 Then run the CLUE_KEEPER, WORLD_CLOCK and RULINGS_KEEPER briefs once each to fill in clues, watch patterns, agendas and rulings, the ARCHIVIST's backfill to save the scenes already played, and the BOOKKEEPER brief on the current scene so the injuries reach the ledger.
@@ -132,7 +164,9 @@ Then run the CLUE_KEEPER, WORLD_CLOCK and RULINGS_KEEPER briefs once each to fil
 Suggested lines for `WORKFLOW.md`:
 
 ```
-- EVERY roll: `gm.py roll ... --apply`, with the `mod=` from `bot.py -g eth rules mods <foe>`.
+- OPTIONS offer intentions, never techniques. In a fight: FIGHT_REFEREE. `bot.py -g eth move start <foe>`, then per exchange ONE `move attack|read` and ONE `move defend`; run the gm.py line it prints (always `--apply`), then `move result`.
+- XP: kills, quests, trials survived and fights won without killing. QUEST_KEEPER after each scene (`quest add/done`).
+- After each scene: `bot.py -g eth ahead`; a FAIL means the next scene must offer a real way out. Mark beats (`beats mark`).
 - After EVERY scene: ARCHIVIST (`archive add <scene> --choice "..." --write`), then BOOKKEEPER (delta -> `bot.py -g eth book apply <delta> --write`), then `bot.py -g eth sync` must be CLEAN.
 - When the day changes or time is skipped: WORLD_CLOCK (`world tick`), then surface one trace.
 - Before a scene: CLUE_KEEPER `clues next --gm`; after a reveal: `clues reveal <rung> --write`.

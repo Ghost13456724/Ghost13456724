@@ -18,7 +18,7 @@ from . import clues as CL
 from . import people as PE
 from .game import Plan
 
-EXTRA_SAVE = ["rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
+EXTRA_SAVE = ["techniques.json", "fight.json", "quests.json", "beats.json", "rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
               "review_rules.json", "LAST_SCENES.md", "SKILL_TREES.md"]
 KEYS = {"day", "time", "where", "with", "now", "pending", "threads_add", "threads_done", "hp", "fatigue", "won", "gold",
         "items_add", "items_remove", "injuries_add", "injuries_heal", "memories_lost", "events_add", "events_done",
@@ -63,6 +63,12 @@ def render_state(game, L, S, people, clue_data, events):
     for e in sorted((e for e in events if isinstance(e.get("day"), (int, float)) and not e.get("done") and e["day"] <= L["day"] + 7),
                     key=lambda e: e["day"]):
         out.append(f"DUE D{e['day']} {e.get('time', '')}: {e['text']}")
+    from . import quests as QU
+    for q in QU.load(game):
+        if q["status"] == "open" and not q.get("secret"):
+            steps = q.get("steps", [])
+            out.append(f"QUEST [{q['kind']}] {q['title']}" + (f" {sum(s['done'] for s in steps)}/{len(steps)}" if steps else "")
+                       + (f", due D{q['due']['day']} {q['due']['time']}" if q.get("due") else ""))
     here = [PE.find(people, n) for n in S.get("with") or []]
     for key in [k for k in here if k]:
         p = people["people"][key]

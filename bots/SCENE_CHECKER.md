@@ -26,7 +26,8 @@ After big scenes (boss fights, reveals, trials, act ends) and every ~4 ordinary 
    - a fact surfacing in front of someone "not in the know" (people tracker): an error if that person says it or acts on it;
    - a "secret leak" line (clue ladder): always an error.
    If the tool says there are no watch patterns, tell the GM to run the clue keeper; until then check the reveal ladder by reading.
-5. **Voices** (report only, never rewrite): a line no real person of that job and age would say, two speakers who sound the same, or a line that only explains plot. Quote at most six words and name the dialogue rule it breaks.
+5. **Options.** The player chooses what Mori tries to do; Mori chooses the move. An option that names a technique, or that differs from another option only in which kick is used, is a finding. So is an option list where every choice leads to the same place.
+6. **Voices** (report only, never rewrite): a line no real person of that job and age would say, two speakers who sound the same, or a line that only explains plot. Quote at most six words and name the dialogue rule it breaks.
 
 ## Output (to the GM, never to the player)
 At most 10 lines, worst first, one finding per line: `[type] line or quote (max 8 words) -> what is wrong -> what the files say`. Refer to a secret by its section and rung number, never by its content. If nothing is wrong, answer `CLEAN` and nothing else. Do not praise, summarize or restate the scene.

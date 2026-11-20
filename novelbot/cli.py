@@ -5,11 +5,15 @@ import os
 import sys
 
 from . import archive as AR
+from . import ahead as AH
+from . import beats as BE
 from . import book as B
 from . import clues as CL
 from . import people as PE
 from . import rulings as RU
+from . import quests as QU
 from . import scale as S
+from . import tech as TE
 from . import world as W
 from .game import Plan
 from . import scene as SC
@@ -80,6 +84,19 @@ def main(argv=None):
     sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
     sp.add_argument("--title"); sp.add_argument("--chapter"); sp.add_argument("--choice"); sp.add_argument("--day", type=int); sp.add_argument("--time")
     sp.add_argument("--raw", action="store_true", help="book: keep dice lines and option menus")
+    sp = sub.add_parser("tech", help="arsenal: init | list | install")
+    sp.add_argument("verb", choices=["init", "list", "install"]); sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("move", help="fight referee: start <foe> | attack | defend | read | result <intent> <TIER> [technique] | status | end")
+    sp.add_argument("verb", choices=["start", "attack", "defend", "read", "result", "status", "end"])
+    sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("quest", help="quest log: list | add <id> k=v.. | step <id> <n> | done <id> | fail <id> | sizes")
+    sp.add_argument("verb", choices=["list", "add", "step", "done", "fail", "sizes"]); sp.add_argument("args", nargs="*")
+    sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
+    sp = sub.add_parser("beats", help="beat tracker: init | status | mark <id> delivered|changed|skipped [note]")
+    sp.add_argument("verb", choices=["init", "status", "mark"]); sp.add_argument("args", nargs="*")
+    sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
+    sp = sub.add_parser("ahead", help="lookahead: what is coming, what he cannot survive or afford, and the honest ways back")
+    sp.add_argument("days", nargs="?", type=int, default=3)
     sp = sub.add_parser("world", help="world clock: init | status | tick | seen <trace id>")
     sp.add_argument("verb", choices=["init", "status", "tick", "seen"]); sp.add_argument("arg", nargs="?")
     sp.add_argument("--rule", action="append", default=[], help="for a step Mori could have stopped: <step id>=stopped|happened")
@@ -293,6 +310,115 @@ def main(argv=None):
                 if v != "book":
                     plan.put_json(AR.INDEX, data)
                 code = plan.finish(a.write)
+        if a.cmd == "tech":
+            techs, plan = TE.load(g), Plan(g)
+            if a.verb == "init":
+                new = {k: v for k, v in TE.PROPOSED.items() if k not in techs}
+                techs.update(json.loads(json.dumps(new)))
+                plan.note(f"{len(new)} proposed technique cards added: {', '.join(new) or '-'}. The numbers are a proposal: edit techniques.json")
+                plan.put_json("techniques.json", techs)
+                code = plan.finish(a.write)
+            elif a.verb == "install":
+                TE.install(g, techs, plan)
+                code = plan.finish(a.write)
+            else:
+                own = TE.owned(g.ledger, techs)
+                for tid, t in techs.items():
+                    need = t.get("needs", {})
+                    print(f"  {'OWNED ' if tid in own else 'locked'} {t['name']:<36} {t['action']:<5} {t.get('effect', {})} "
+                          f"cost {t.get('cost', {}) or '-'} when {t.get('when', {}) or 'always'} | needs {need.get('skill', '-')} {need.get('mastery', '')}")
+                    print(f"         {t.get('note', '')}")
+                if not techs:
+                    print("  no technique cards: run `tech init --write`")
+        if a.cmd == "move":
+            techs, plan, v, r = TE.load(g), Plan(g), a.verb, a.args
+            if v == "start":
+                fid = g.foe(r[0])
+                plan.put_json("fight.json", {"foe": fid, "shown": [], "read": False, "opening": False, "lost": 0, "exchanges": 0, "started": g.stamp()})
+                plan.note(f"fight started against {g.foes[fid]['name']}. Each exchange is ONE `move attack` and ONE `move defend` (or `move read` in place of the attack)")
+                code = plan.finish(a.write)
+            elif v in ("attack", "defend", "read"):
+                fid, state, mod, shift, opts = TE.recommend(g, techs, v, r[0] if r else None)
+                best = opts[0]
+                name = best["tech"]["name"] if best["tech"] else {"attack": "plain kick", "defend": "plain dodge", "read": "plain read"}[v]
+                print(f"  Mori uses: {name}" + (" at the weak point" if best["weak"] else "") + f"  ({best['R']['p']}% to succeed)")
+                if best["tech"]:
+                    print(f"    why: {best['tech'].get('note', '')}")
+                    if best["tech"].get("cost"):
+                        print(f"    cost after the roll: {best['tech']['cost']}")
+                if mod:
+                    print(f"    includes mod={mod:+d} from rulings (adaptation and the like)")
+                if shift:
+                    print("    includes shift=-3: the foe is off balance")
+                for o in opts[1:4]:
+                    n = o["tech"]["name"] if o["tech"] else "plain"
+                    print(f"    passed over: {n}{' (weak point)' if o['weak'] else ''} at {o['R']['p']}%")
+                print("  roll it with:\n    " + TE.gm_line(TE.INTENT[v], fid, best, mod, shift))
+                print(f"  then record it: bot.py move result {v} <STRONG|CLEAN|PARTIAL|FAIL>" + (f" {best['id']}" if best["id"] else "") + " --write")
+                if best["id"] and not any(e["id"] == TE.PREFIX + best["id"] for e in g.ledger.get("effects", [])):
+                    print("  !! this technique is not in the ledger yet: run `bot.py tech install --write` first")
+            elif v == "result":
+                state, tier = TE.record(g, techs, r[0], r[1], r[2] if len(r) > 2 else None, plan)
+                if state:
+                    plan.put_json("fight.json", state)
+                code = plan.finish(a.write)
+            elif v == "status":
+                st = TE.fight_state(g)
+                print(f"  {st}" if st else "  no fight in progress")
+            elif v == "end":
+                st = TE.fight_state(g)
+                if st:
+                    rdata = RU.load(g)
+                    for x in rdata["rulings"]:
+                        if x["kind"] == "bonus":
+                            rdata["uses"].pop(f"{x['id']}:{st['foe']}", None)
+                    plan.put_json("rulings.json", rdata)
+                    plan.put_text("fight.json", "")
+                    plan.note(f"fight against {st['foe']} closed after {st.get('exchanges', 0)} rolls; per-foe bonuses cleared")
+                code = plan.finish(a.write)
+        if a.cmd == "quest":
+            data, plan, v, r = QU.load(g), Plan(g), a.verb, a.args
+            if v == "list":
+                print("\n".join(QU.listing(g, data, a.gm)))
+                for sev, msg in QU.findings(g, data):
+                    print(f"  {sev} {msg}")
+            elif v == "sizes":
+                for k, pct in QU.SIZES.items():
+                    print(f"  {k:<7} {pct:>3}% of a level = {QU.xp_value(g.ledger, k)} XP at Lv{g.ledger['level']}")
+            else:
+                if v == "add":
+                    QU.add(g, data, r[0], dict(x.split("=", 1) for x in r[1:]), plan)
+                elif v == "step":
+                    q = QU.get(data, r[0])
+                    q["steps"][int(r[1]) - 1]["done"] = True
+                    plan.note(f"{r[0]}: step {r[1]} done ({sum(s['done'] for s in q['steps'])}/{len(q['steps'])})")
+                else:
+                    QU.finish(g, data, r[0], plan, a.write, failed=(v == "fail"))
+                plan.put_json("quests.json", data)
+                code = plan.finish(a.write)
+        if a.cmd == "beats":
+            data, plan, v, r = BE.load(g), Plan(g), a.verb, a.args
+            if v == "init":
+                plan.note(f"{BE.init(g, data)} planned items read from the arc cards")
+            elif v == "mark":
+                BE.mark(data, r[0], r[1], " ".join(r[2:]), g.stamp(), plan)
+            if v == "status":
+                rows, finds = BE.status(g, data, a.gm)
+                print("\n".join(rows))
+                for sev, msg in finds:
+                    print(f"  {sev} {msg}")
+            else:
+                plan.put_json("beats.json", data)
+                code = plan.finish(a.write)
+        if a.cmd in ("ahead", "all"):
+            print("AHEAD" + (f" (next {a.days} days)" if a.cmd == "ahead" else ""))
+            finds, ways = AH.report(g, getattr(a, "days", 3))
+            for sev, msg in finds:
+                print(f"  {sev} {msg}")
+            print("  honest ways back:")
+            for w in ways:
+                print(f"    - {w}")
+            line, c = verdict(finds); print("  " + line)
         if a.cmd == "all":
             print("RULINGS")
             rfinds = RU.audit(g, RU.load(g))
@@ -303,6 +429,7 @@ def main(argv=None):
             extra = [("NOTE", f"log has {len(PE.scan(g, PE.load(g)))} trust change(s) not in people.json: run `people scan`")] if PE.scan(g, PE.load(g)) else []
             extra += CL.status(CL.load(g))[1] if g.text("clues.json") else [("NOTE", "no clues.json: run `clues init`")]
             extra += W.status(g, W.load(g))[1]
+            extra += [f for f in QU.findings(g, QU.load(g))] + [f for f in BE.status(g, BE.load(g))[1]]
             arch = AR.load(g)
             if not arch["scenes"]:
                 extra.append(("NOTE", "the archive is empty: scenes are not being saved in full (`archive add`)"))

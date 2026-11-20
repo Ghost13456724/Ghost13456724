@@ -72,7 +72,15 @@ def _compute(game, L, action, foe_id, **kw):
 
 
 def best_attack(game, L, foe_id):
-    """Body kick or weak-point kick: whichever removes more health per attempt."""
+    """The attack that removes most health per attempt: body or weak point, plain or with a technique he owns."""
+    from . import tech as T
+    techs = T.load(game)
+    if techs:
+        opts = [o for o in T.options(game, L, techs, "hit", foe_id, {"shown": [o for o, t in techs.items() if t.get("when", {}).get("unshown")]})]
+        if opts:
+            o = opts[0]
+            exp = sum(o["chances"].get(t, 0) / 100 * wound(o["R"]["kr"], t) for t in ("STRONG", "CLEAN", "PARTIAL"))
+            return (exp, o["weak"], o["R"], o["id"])
     best = None
     for weak in (False, True):
         if weak and not game.foes[foe_id].get("T_weak"):
@@ -96,14 +104,21 @@ def simulate(game, L0, foe_id, fights=600, max_rounds=40, seed=7, defences=1):
     gm, wins, rounds, hp_left = game.gm, 0, 0, 0
     cache = {}
 
+    plan = best_attack(game, L0, foe_id)
+
     def odds(L, action, weak=False):
         hp = L["hp"] / max(1, L["hp_max"])
         key = (action, weak, min(L["fatigue"], 90) // 10, 0 if hp < 0.1 else 1 if hp < 0.3 else 2 if hp < 0.5 else 3)
         if key not in cache:
-            cache[key] = _compute(game, L, action, foe_id, weak=weak)
+            if action == "hit" and plan and len(plan) > 3 and plan[3]:
+                from . import tech as T
+                L2 = T.with_effects(L, T.load(game))
+                t = T.load(game)[plan[3]]
+                cache[key] = game.gm.compute(L2, game.foes, "hit", foe_id, weak=weak, use=(T.PREFIX + plan[3],), **({"strike": t["strike"]} if t.get("strike") else {}))
+            else:
+                cache[key] = _compute(game, L, action, foe_id, weak=weak)
         return cache[key]
 
-    plan = best_attack(game, L0, foe_id)
     for _ in range(fights):
         L = dict(L0, hp=L0["hp"], fatigue=L0.get("fatigue", 0))
         foe_hp, r = 1.0, 0

@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 
-from novelbot import archive as AR, book as B, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
+from novelbot import ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
 from novelbot.game import Game, Plan
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
@@ -394,6 +394,199 @@ class ArchiveTests(Base):
         self.assertEqual(len(AR.live(data)), 1)
         self.assertTrue(os.path.exists(os.path.join(self.dir, "archive/scenes/0002_D1.md")))
         self.assertNotIn("Morning", AR.build(g, data)[0])
+
+
+class TechTests(Base):
+    def setUp(self):
+        super().setUp()
+        L = self.get("ledger.json")
+        L["skills"]["Erase the Rhythm"] = "1"
+        self.put("ledger.json", L)
+        self.put("techniques.json", TE.PROPOSED)
+        self.put("rulings.json", {"rulings": [{"id": "adaptation", "kind": "bonus", "per": "foe", "step": 1, "max": 3,
+                                                "text": "adaptation", "source": "t"}], "uses": {}, "seen": []})
+
+    def start(self, foe="dokkaebi_ringleader"):
+        self.put("fight.json", {"foe": foe, "shown": [], "read": False, "opening": False, "lost": 0, "exchanges": 0})
+
+    def result(self, intent, tier, tid=None):
+        def go(g, plan):
+            state, _ = TE.record(g, TE.load(g), intent, tier, tid, plan)
+            if state:
+                plan.put_json("fight.json", state)
+        return self.run_plan(go)
+
+    def test_owned_follows_the_sheet(self):
+        g = self.game()
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED))
+        g.ledger["skills"] = {"Renewal Taekwondo": "2"}
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), {"x_guard"})
+
+    def test_mori_picks_and_the_pick_changes_with_the_fight(self):
+        self.start()
+        g = self.game()
+        fid, state, mod, shift, opts = TE.recommend(g, TE.load(g), "attack")
+        first = opts[0]["id"]
+        self.assertEqual(opts[0]["value"], max(o["value"] for o in opts))
+        self.assertNotIn("counter_hoechook", [o["id"] for o in opts])            # he has not read the foe yet
+        line = TE.gm_line("hit", fid, opts[0], mod, shift)
+        self.assertIn("python3 gm.py roll hit foe=dokkaebi_ringleader", line)
+        self.assertIn("--apply", line)
+        self.result("attack", "CLEAN", "lowest_hoechook")
+        state = self.get("fight.json")
+        self.assertEqual((state["shown"], state["opening"]), (["lowest_hoechook"], True))
+        g = self.game()
+        _, _, _, shift, opts = TE.recommend(g, TE.load(g), "attack")
+        self.assertEqual(shift, -3)
+        self.assertNotIn("lowest_hoechook", [o["id"] for o in opts])             # the foe has seen it now
+        self.result("read", "STRONG")
+        g = self.game()
+        self.assertIn("counter_hoechook", [o["id"] for o in TE.recommend(g, TE.load(g), "attack")[4]])
+        self.assertIsNotNone(first)
+
+    def test_losing_an_exchange_grows_adaptation_only_after_a_read(self):
+        self.start()
+        self.result("defend", "FAIL")
+        self.assertEqual(self.get("rulings.json")["uses"], {})
+        self.result("read", "CLEAN")
+        self.result("defend", "FAIL")
+        self.assertEqual(self.get("rulings.json")["uses"], {"adaptation:dokkaebi_ringleader": 1})
+        g = self.game()
+        self.assertEqual(TE.recommend(g, TE.load(g), "defend")[2], 1)
+        self.assertFalse(self.get("fight.json")["opening"])
+
+    def test_install_makes_gm_py_accept_the_technique(self):
+        def go(g, plan):
+            TE.install(g, TE.load(g), plan)
+        self.run_plan(go)
+        g = self.game()
+        ids = [e["id"] for e in g.ledger["effects"]]
+        self.assertIn("t_three_stage_hoechook", ids)
+        plain = g.gm.compute(g.ledger, g.foes, "hit", "dokkaebi")
+        big = g.gm.compute(g.ledger, g.foes, "hit", "dokkaebi", use=("t_three_stage_hoechook",))
+        self.assertAlmostEqual(big["kp"], plain["kp"] * 1.5)                      # only when called; passive rolls unchanged
+        self.assertEqual(big["dc"], plain["dc"] + 2)
+
+    def test_options_must_not_make_the_player_pick_the_kick(self):
+        scene = "The club comes down.\n\n1. Use Lowest Hoechook\n2. Back off\n3. Something else\n"
+        text = " | ".join(m for _, m in SC.check(self.game(), scene))
+        self.assertIn("an option names a technique ('Lowest Hoechook')", text)
+        ok = "The club comes down.\n\n1. Go for its legs\n2. Back off\n3. Something else\n"
+        self.assertNotIn("names a technique", " | ".join(m for _, m in SC.check(self.game(), ok)))
+
+
+class QuestTests(Base):
+    def add(self, qid, **f):
+        def go(g, plan):
+            data = QU.load(g)
+            QU.add(g, data, qid, f, plan)
+            plan.put_json("quests.json", data)
+        return self.run_plan(go)
+
+    def finish(self, qid, write=True, failed=False):
+        g = self.game()
+        data, plan = QU.load(g), Plan(g)
+        QU.finish(g, data, qid, plan, write, failed)
+        plan.put_json("quests.json", data)
+        return plan, plan.finish(write)
+
+    def test_xp_sizes_scale_with_level(self):
+        L = self.game().ledger
+        self.assertEqual([QU.xp_value(L, k) for k in ("small", "medium", "large", "trial")], [15, 35, 60, 100])
+        L["level"] = 10
+        self.assertEqual(QU.xp_value(L, "trial"), 1000)
+        self.assertEqual(QU.xp_value(L, 40), 40)
+
+    def test_completing_a_quest_pays_through_gm_py_and_can_level_up(self):
+        self.add("bet", kind="hidden", title="A Wager Honoured", xp="trial", points="3", items="Horn-ring")
+        plan, code = self.finish("bet")
+        self.assertEqual(code, 0)
+        L = self.get("ledger.json")
+        self.assertEqual((L["level"], L["points"]), (2, 3))                       # 100 XP at Lv1: a non-kill level-up
+        self.assertIn("Horn-ring", L["items"])
+        self.assertEqual(L["stats"]["Str"], 11)
+        self.assertIn("[Quest complete: A Wager Honoured.]", plan.notes)
+        self.assertEqual(self.get("quests.json")[0]["status"], "done")
+        plan, code = self.finish("bet")
+        self.assertEqual(code, 1)                                                  # cannot be paid twice
+
+    def test_steps_secrets_and_failure(self):
+        self.add("rec", kind="main", title="The Record", steps="sign|hand in", due="D0@17:00", price="the bed is lost", xp="small")
+        self.add("eye", kind="hidden", title="Watcher", secret="1", xp="small")
+        plan, code = self.finish("rec", write=False)
+        self.assertEqual(code, 1)
+        g = self.game()
+        rows = "\n".join(QU.listing(g, QU.load(g)))
+        self.assertIn("The Record 0/2 due D0 17:00", rows)
+        self.assertNotIn("Watcher", rows)
+        self.assertIn("Watcher", "\n".join(QU.listing(g, QU.load(g), gm=True)))
+        self.assertIn("was due D0", " | ".join(m for _, m in QU.findings(g, QU.load(g))))
+        plan, _ = self.finish("rec", failed=True)
+        self.assertIn("PRICE: the bed is lost", plan.notes[0])
+        self.assertEqual(self.get("ledger.json")["xp"], 0)
+
+
+class BeatTests(Base):
+    def setUp(self):
+        super().setUp()
+        with open(os.path.join(self.dir, "ARC_01_TEST.md"), "a") as f:
+            f.write("\n## Beat 0 — Morning (D0, 05:30)\n- The bulb blows.\n- Optional: the courtyard.\n"
+                    "\n## Beat 1 — The climb (D3-D30, Lv1 → ~12)\n- Training.\n  - a sub point\n- A rival appears.\n")
+        g = self.game()
+        data = BE.load(g)
+        self.assertEqual(BE.init(g, data), 4)
+        self.assertEqual(BE.init(g, data), 0)
+        self.put("beats.json", data)
+
+    def test_overdue_pending_items_are_flagged_and_text_is_hidden(self):
+        g = self.game()
+        rows, finds = BE.status(g, BE.load(g))
+        self.assertEqual([m[:6] for _, m in finds], ["a1b0.1"])                   # the optional item is not chased
+        self.assertNotIn("bulb", "\n".join(rows))
+        self.assertIn("bulb", "\n".join(BE.status(g, BE.load(g), gm=True)[0]))
+
+    def test_mark_needs_a_reason_for_changes(self):
+        g = self.game()
+        data, plan = BE.load(g), Plan(g)
+        BE.mark(data, "a1b0.1", "changed", "", g.stamp(), plan)
+        self.assertEqual(len(plan.errors), 1)
+        BE.mark(data, "a1b0.1", "changed", "he left before dawn", g.stamp(), plan)
+        self.assertEqual(data["beats"][0]["status"], "changed")
+        self.put("beats.json", data)
+        self.assertEqual(BE.status(self.game(), data)[1], [])
+
+    def test_pace(self):
+        p = BE.pace(self.game(), self.get("beats.json"))
+        self.assertEqual((p["day"], p["level"], p["xp"]), (30, 12, 6600))
+
+
+class AheadTests(Base):
+    def test_sees_the_dead_end_and_the_ways_out(self):
+        L = self.get("ledger.json")
+        L.update(hp=3, won=100000, time="20:00", injuries=[{"name": "broken collarbone", "mod": -2}])
+        self.put("ledger.json", L)
+        foes = self.get("foes.json")
+        foes["fire_centipede"] = {"SPD": 16, "ATK": 28, "T": 60, "T_weak": 40, "type": "penalty", "dc": "desperate",
+                                  "STEALTH": 12, "name": "Fire Centipede", "notes": "Penalty Zone"}
+        self.put("foes.json", foes)
+        self.put("people.json", {"people": {"Han Seorin": PE.new_person("Han Seorin", role="C-rank Healer")}, "facts": {}})
+        finds, ways = AH.report(self.game(), 7, sims=60)
+        text = " | ".join(f"{s} {m}" for s, m in finds)
+        self.assertIn("FAIL if it is missed: the Penalty Zone", text)
+        self.assertIn("4.0 hours to midnight", text)
+        self.assertIn("200,000 short", text)
+        self.assertIn("he beats 0 as he is right now", text)
+        joined = " | ".join(ways)
+        self.assertIn("finish the Daily Discipline", joined)
+        self.assertIn("level up: 100 XP away", joined)
+        self.assertIn("Han Seorin", joined)
+
+    def test_quiet_when_healthy(self):
+        L = self.get("ledger.json")
+        L["daily"]["done_today"] = True
+        self.put("ledger.json", L)
+        finds, _ = AH.report(self.game(), 2, sims=60)
+        self.assertEqual([f for f in finds if f[0] in ("FAIL", "WARN")], [])
 
 
 if __name__ == "__main__":
