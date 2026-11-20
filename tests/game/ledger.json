@@ -1,0 +1,110 @@
+{
+ "level": 1,
+ "class": "None",
+ "stats": {
+  "Str": 10,
+  "Con": 10,
+  "Agi": 10,
+  "Int": 10,
+  "Sense": 10
+ },
+ "points": 0,
+ "hp": 100,
+ "hp_max": 100,
+ "mp": 10,
+ "mp_max": 10,
+ "fatigue": 5,
+ "pdr": 0,
+ "titles": [],
+ "title_active": null,
+ "skills": {
+  "Renewal Taekwondo": "4 (Ground Drawer used early)"
+ },
+ "weapons": {},
+ "items": [
+  "E-rank license card"
+ ],
+ "gold": 0,
+ "won": 202000,
+ "day": 1,
+ "time": "09:00",
+ "boxes": 0,
+ "daily": {
+  "done_today": false,
+  "count": 0,
+  "missed": 0
+ },
+ "kills": {},
+ "flags": {
+  "world": "Test",
+  "system": true,
+  "date": "2047-03-15",
+  "memories_lost": [
+   "Hana's name"
+  ],
+  "rent_due": "D7"
+ },
+ "reminders": {},
+ "effects": [
+  {
+   "src": "training",
+   "on": true,
+   "when": {
+    "actions": [
+     "hit"
+    ],
+    "unarmed": true
+   },
+   "tech": 2,
+   "strike_mult": {
+    "kick": 1.2,
+    "knee": 1.1,
+    "elbow": 1.1,
+    "stomp": 1.3,
+    "axe": 1.3
+   },
+   "note": "Renewal Taekwondo: real technique on unarmed strikes; kicks hit harder (ruling)",
+   "id": "taekwondo_strikes"
+  },
+  {
+   "src": "training",
+   "on": true,
+   "when": {
+    "actions": [
+     "dodge",
+     "read"
+    ]
+   },
+   "tech": 2,
+   "note": "footwork and fight-reading",
+   "id": "taekwondo_footwork"
+  }
+ ],
+ "milestones": [],
+ "counters": {},
+ "weapon_affinity": "staff,unarmed",
+ "tags": {
+  "mana": "BORROWED (E-rank sliver)"
+ },
+ "fame": {
+  "earth": 0,
+  "jianghu": 0
+ },
+ "gi_years": 0,
+ "realm": null,
+ "mastery": {
+  "Hoechook": 3,
+  "Forward Punch": 2,
+  "Reverse Spin": 2,
+  "Arang": 1,
+  "Hook and Strip": 1,
+  "Taebaek": 1,
+  "Baekdu": 2,
+  "Goryeo": 1,
+  "True Spin": 1,
+  "Baengnok": 1,
+  "Three-Point Kick": 1,
+  "Drill": 1
+ },
+ "xp": 0
+}

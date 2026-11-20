@@ -1,0 +1,3 @@
+- D0 10:20: roll dodge dokkaebi_ringleader d5 need 10 (55%) dc11
+- D0 10:26: roll hit dokkaebi_ringleader d19 need 12 (45%) dc14
+- D1 09:00: Woke up. (clue rung 2)

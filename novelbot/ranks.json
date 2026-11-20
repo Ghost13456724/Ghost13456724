@@ -1,0 +1,16 @@
+{
+  "_note": "PROPOSED ruling, not canon: a rank is read from a combat index (Mori: his Strength and pace; a foe: SPD and ATK). Each rank is about 1.8x the one below. Anchors: a Lv1 E-rank has 10 in every stat; the Union Thug card is the bottom of D. Change the numbers here and every command follows.",
+  "ranks": [
+    {"name": "E-rank", "from": 0},
+    {"name": "D-rank", "from": 11},
+    {"name": "C-rank", "from": 20},
+    {"name": "B-rank", "from": 36},
+    {"name": "A-rank", "from": 65},
+    {"name": "S-rank", "from": 115},
+    {"name": "National class", "from": 210},
+    {"name": "Hero", "from": 380},
+    {"name": "God", "from": 680},
+    {"name": "Great God", "from": 1200},
+    {"name": "Sovereign", "from": 2200}
+  ]
+}

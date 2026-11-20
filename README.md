@@ -1,127 +1,85 @@
 # novelbot
 
-A canon keeper for novel-style text games. It scales power from recorded feats, reviews scenes against canon before they count, and keeps the world state honest between sessions.
+A helper bot for novel-style text RPGs that run on a `gm.py` game folder (built for **Equal to Heaven**). It does three jobs the dice engine leaves to the GM's memory:
 
-It has two halves:
+1. **Power scaling.** Forecasts whole fights, audits foe cards and designs new foes to a target difficulty.
+2. **State audit.** Checks that the ledger, `STATE_NOW.md`, the log and the event clock agree.
+3. **Scene checks.** Compares a written scene with the ledger and log: status numbers, dice lines, techniques, names, format.
 
-- **An engine** (`bot.py`, Python standard library only) that does the arithmetic and bookkeeping: power ratings, matchups, dice, continuity checks, prose format checks, and writing reviewed scenes into canon.
-- **Three agent prompts** (`.claude/agents/`) that do the reading: `scene-reviewer` turns a scene's prose into a list of claims and judges it, `powerscaler` answers strength questions from the evidence, and `canon-importer` turns prose notes into structured canon.
+Every combat number comes from the game folder's own `gm.py`, so the bot cannot disagree with the engine the game is played with. It only reads the game folder; it never changes a file in it.
 
-The reader makes the judgment calls; the engine cannot forget an injury or misremember a stat.
+## Setup
 
-## Quick start
+Unzip this folder next to the game (for example `/home/claude/rpg/novelbot/`). Python 3 only, no installs.
 
 ```
-python3 bot.py status                              # clock, locations, injuries
-python3 bot.py ladder                              # tiers and current ranking
-python3 bot.py show Seorin                         # sheet plus the feats behind each stat
-python3 bot.py compare Seorin Ogre --a-form "Second Breath"
-python3 bot.py roll Dojin Seorin                   # matchup plus a d20 (prints its seed)
-python3 bot.py audit                               # inflated stats, outliers, contradictory results
-python3 bot.py check examples/claims.json          # a scene that breaks canon (rejected)
-python3 bot.py check examples/claims_fixed.json    # the same scene, earned
-python3 bot.py lint examples/scene.md              # format and prose checks
-python3 bot.py commit examples/claims_fixed.json   # write a reviewed scene into canon
+cd /home/claude/rpg/novelbot
+python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_SCENES.md
+```
+
+`-g` is the game folder: the one holding `ledger.json`, `foes.json`, `events.json`, `LOG.md`, `STATE_NOW.md` and `gm.py`.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `fight <foe> [--level N]` | Odds for each action, what a clean kick does, what the foe's hit costs, then the whole fight replayed 600 times: win rate rested and as Mori is right now |
+| `foes` | Audits every foe card and lists them from easiest to deadliest |
+| `design <role> [--level N] [--name] [--type] [--rank]` | Builds a foe card for the fight you want and prints the `gm.py foe add` line |
+| `rank` | Where Mori and each foe sit on the rank ladder |
+| `sync` | Ledger against STATE_NOW, the log, the calendar and the event clock |
+| `scene [file] [--turn]` | Mechanical check of a scene (default `LAST_SCENES.md`) |
+| `all` | `sync` + `foes` + `scene` |
+
+### Power scaling
+
+`fight` plays the fight forward round by round (one strike, one defence), with HP loss, fatigue and gm.py's penalties building up, so a long fight is as hard as it really is. Verdicts: fodder, favoured, even fight, dangerous, do not fight.
+
+`design` roles are defined by the fight they give a rested Mori alone:
+
+| Role | Target win rate |
+| --- | --- |
+| `grunt` | about 95% |
+| `even` | about 50% |
+| `elite` | about 25% |
+| `boss` | under 10%: needs allies, a trick or a rule to break |
+
+It grows a card step by step and replays the fight at each step, then returns the closest card. `--level 12` builds it for a level 12 Mori (+1 to every stat per level; spent points and new skills are not projected). `--rank C-rank` scales the card into a rank band instead and shows what that rank means for Mori.
+
+`foes` flags cards with missing numbers, a weak point tougher than the body, a difficulty label the fight forecast contradicts, a foe Mori cannot wound whose card does not say what beats it, and families out of order (a leader weaker than its grunts).
+
+The rank bands live in `novelbot/ranks.json`. **They are a proposed ruling, not canon**: each rank is about 1.8 times the one below, anchored on a level 1 E-rank and the Union Thug card. Edit the file and every command follows.
+
+### State audit
+
+`sync` checks, among other things: HP and MP maximums against Vitality and Intelligence, unclaimed level-ups, stats below the level's floor, technique bonus against mastery, STATE_NOW's day and HP against the ledger, injuries described in the notes but missing from the ledger (so no roll is penalised for them), `flags.date` against the calendar, deadlines in `flags` against `events.json`, and past events never marked done.
+
+### Scene checks
+
+`scene` flags: HP, MP, level or stat numbers that differ from the ledger; dice lines with no matching roll in `LOG.md` or a result that does not follow from the numbers; techniques above Mori's mastery; a name Mori has lost; banned elements; a blade in Mori's hands; System text outside `[brackets]`; a missing or wrong options block; a scene dated ahead of the ledger.
+
+Two optional GM-side files in the game folder extend it:
+- `secrets_watch.json`: `[{"pattern": "<regex>", "rung": 4}]`. A match above the story's current reveal rung is reported as a leak. The scene checker bot builds this from the reveal ladder.
+- `review_rules.json`: extra `banned` patterns, or a different `options` rule.
+
+## The two bots
+
+`bots/SCENE_CHECKER.md` and `bots/POWERSCALER.md` are briefs for helper agents, in the same style as the game's other bot briefs. Spawn one with: "Read `novelbot/bots/SCENE_CHECKER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
+
+The scene checker runs the tool, then reads the scene against the bible, the secrets file, the ledger and the fight rules, and reports only continuity errors, secret leaks, broken rules, power-scale problems, fight-style violations and plot holes. It does not rewrite prose. The powerscaler designs foes, forecasts fights and audits the roster.
+
+Suggested lines for `WORKFLOW.md`:
+
+```
+- New enemy: `python3 novelbot/bot.py -g eth design <role> --level N` -> foe card. Never a guessed card.
+- Before any real fight: `python3 novelbot/bot.py -g eth fight <foe>`.
+- Every scene sent to the checker, and at every arc boundary: `python3 novelbot/bot.py -g eth all`.
+```
+
+## Tests
+
+```
 python3 -m unittest discover -s tests
 ```
 
-`data/` ships with a small sample world so every command works out of the box.
-
-## Campaigns
-
-Each game gets a folder under `campaigns/` with its own ladder, canon and rules. Pick one with `-c`:
-
-```
-python3 bot.py -c equal-to-heaven status
-python3 bot.py -c equal-to-heaven rules            # house rules the reviewer checks by reading
-python3 bot.py -c equal-to-heaven new "Jin Mori" "E-rank" --edge 2
-python3 bot.py -c equal-to-heaven compare "Jin Mori" "<foe>"
-```
-
-`campaigns/equal-to-heaven/` holds the Equal to Heaven game: the ladder from E-rank to past universal scale, the dice bands, and the house rules from its GM guide. Its canon starts empty; run the `canon-importer` agent over the game's files and log to fill it.
-
-To start another campaign, copy that folder, edit the tiers in `scale.json`, empty `canon.json`, and run the importer over that game's notes.
-
-A ladder can also be made of realms with stages: give a tier `abbr` and `stages`, then write ratings as `"IG 5"` and convert with `bot.py rate IG 5`. On a realm ladder a character's `realm` is the baseline. A stat above it needs a feat, or `audit` reports it as `above-realm`.
-
-## How power scaling works
-
-Every stat is a rating on one logarithmic ladder: **10 points is one tier (about ten times the output), 3 points is about double.** The ladder in `data/scale.json` runs from E-rank to past universal, each tier with a physical benchmark.
-
-| Stat | Meaning |
-| --- | --- |
-| `ap` | attack potency |
-| `dur` | durability |
-| `spd` | combat speed and reactions |
-| `sta` | stamina and reserves |
-| `tec` | technique; it modifies the dice roll, not the raw gap |
-
-A matchup produces a **gap** from attack against durability in both directions, speed and stamina. A character who is ten points up in everything has a gap of +10. The gap picks a difficulty band, and the fight is rolled as `d20 + technique modifier` against that band's DC:
-
-| Gap | Band | DC |
-| --- | --- | --- |
-| +15 or more | auto | no roll |
-| +8 | trivial | 3 |
-| +3 | easy | 7 |
-| -3 to +3 | even | 11 |
-| down to -8 | hard | 14 |
-| down to -15 | desperate | 17 |
-| down to -25 | beyond | 20 |
-| lower | impossible | no roll |
-
-Three rules stop the numbers from being gamed:
-
-- **Durability gate.** If attack is 10 or more below the target's durability, the attacker cannot hurt them. The band drops to at least *beyond* and technique stops helping, so the win needs a weakness, help or a new power shown on the page.
-- **Speed blitz.** A speed lead of 10 or more shifts the band one step.
-- **Abilities that bypass durability** count as a win condition only if their potency beats the target's resistance, and their cost is always reported.
-
-Stats have to be backed by **feats**. Shown feats outrank statements (a statement adds at most 3 points), a lone feat more than 8 points above the rest is an outlier and is not counted, and `audit` flags any stat more than 3 points away from its evidence. It also flags fair wins that the numbers say should not have happened.
-
-All thresholds live in `data/scale.json`.
-
-## How scene review works
-
-1. The reviewer reads the scene and writes its claims as JSON (`examples/claims.json`): who is present, and an event for each fight, feat, power gain, item or ability used, injury, death, journey and use of knowledge.
-2. `bot.py check` compares the claims with canon.
-3. `bot.py lint` checks the prose file against `data/rules.json`.
-4. The GM fixes the scene, then runs `bot.py commit`, which refuses scenes with errors unless `--force` is given.
-
-| Check | What it catches |
-| --- | --- |
-| `impossible-win`, `unexplained-upset`, `free-upset` | wins the numbers do not allow, or allow only with conditions and a cost |
-| `false-tension`, `jobbing` | a far stronger character written as struggling |
-| `feat-above-stats` | a feat beyond the character's current rating |
-| `unearned-power`, `free-power`, `big-jump` | power gains with no cause, no cost, or more than a tier at once |
-| `knowledge-leak` | a character acting on a fact they never learned |
-| `early-reveal` | a secret revealed more than one rung ahead of the clue ladder |
-| `dead-character`, `teleport`, `time-reversal` | continuity breaks |
-| `missing-item`, `unknown-ability` | using what the character does not have |
-| `no-roll` | a contested fight decided without dice |
-| `active-condition` | a reminder of injuries the prose should show |
-
-Lint covers word count, banned terms, System messages outside `[brackets]`, the required ending (a block of numbered options, or a closing line such as "What do you do?"), repeated words and weak phrases. Rules that need reading, such as content limits, go in `house_rules` and are checked by the reviewer agent.
-
-Event types: `fight`, `feat`, `power_up`, `uses_item`, `uses_ability`, `knows`, `learns`, `reveal`, `injury`, `recovers`, `death`, `travel`, `gains_item`, `loses_item`, `learns_ability`.
-
-## Using the agents
-
-In Claude Code, from this repository:
-
-- "Use the scene-reviewer agent on `drafts/s09.md`" returns PASS, REVISE or REJECT with the smallest fix for each finding. It never commits and never edits canon.
-- "Ask the powerscaler: can Seorin beat the Ogre in Second Breath?" or "Give me stats for a rival who should be a hard fight for Seorin."
-
-- "Use the canon-importer agent on these notes for the equal-to-heaven campaign" turns prose notes into sheets, feats, facts and results, and lists every gap it had to leave.
-
-## Files
-
-```
-bot.py                  entry point
-novelbot/scale.py       tiers, evidence, matchups, audit
-novelbot/review.py      claim checks and commit
-novelbot/lint.py        prose and format checks
-data/scale.json         ladder, bands, thresholds
-data/canon.json         characters, feats, facts, results, clock (the bot writes this)
-data/rules.json         style rules for lint
-campaigns/<name>/       one folder per game, same three files as data/
-examples/               a failing scene, the fixed version, and a prose sample
-```
+`tests/game/` is a small made-up game folder using a copy of the real `gm.py`.

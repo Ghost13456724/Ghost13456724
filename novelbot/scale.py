@@ -1,261 +1,261 @@
-"""Power scaling.
+"""Power scaling: forecast a fight, audit foe cards, design new foes, name ranks.
 
-Every stat is a rating on one logarithmic scale: +10 is one full tier
-(about ten times the output), +3 is about double. Ratings come from feats,
-so a number nobody has shown on the page is flagged instead of trusted.
-
-Stats:
-  ap   attack potency (how hard they hit)
-  dur  durability (what they can take)
-  spd  combat speed and reactions
-  sta  stamina / energy reserves
-  tec  technique (skill; feeds the dice roll, not the raw gap)
+Every probability and damage figure is produced by the game's gm.compute().
+What this adds is the part gm.py leaves to the GM's head: playing the whole
+fight forward many times to see who actually wins and what it costs.
 """
-import re
+import json
+import math
+import os
+import random
 
-from . import canon as C
-
-STATS = ("ap", "dur", "spd", "sta", "tec")
-BAND_ORDER = ("auto", "trivial", "easy", "even", "hard", "desperate", "beyond", "impossible")
-
-
-def _tiers(scale):
-    return sorted(scale["tiers"], key=lambda t: t["floor"])
-
-
-def _width(tiers, i):
-    return tiers[i + 1]["floor"] - tiers[i]["floor"] if i + 1 < len(tiers) else 10
-
-
-def tier_of(scale, rating):
-    """Name where a rating falls: 'mid B-rank', or 'Inner Gate 5' on a staged ladder."""
-    tiers = _tiers(scale)
-    if rating < tiers[0]["floor"]:
-        return f"below {tiers[0]['name']}"
-    i = max(k for k, t in enumerate(tiers) if rating >= t["floor"])
-    pos = (rating - tiers[i]["floor"]) / _width(tiers, i)
-    stages = tiers[i].get("stages")
-    if stages:
-        stage = min(stages, int(pos * stages + 0.05) + 1)
-        return tiers[i]["name"] + (f" {stage}" if stages > 1 else "") + (" (beyond)" if pos >= 1 else "")
-    place = "low" if pos < 1 / 3 else "mid" if pos < 2 / 3 else "high"
-    return f"{place} {tiers[i]['name']}"
+LADDER = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ranks.json"), encoding="utf-8"))
+FATIGUE = {"trivial": 1, "easy": 1, "even": 2, "hard": 5, "desperate": 5, "beyond": 6}
+CLASSES = [(90, "fodder"), (65, "favoured"), (35, "even fight"), (10, "dangerous"), (0, "do not fight")]
+ROLES = {  # the fight each role should give a rested Mori alone, and the shape of the foe (speed, hit, toughness)
+    "grunt": {"win": 95, "shape": (0.9, 0.9, 0.8), "dc": "easy"},
+    "even": {"win": 50, "shape": (1.0, 1.0, 1.0), "dc": "even"},
+    "elite": {"win": 25, "shape": (1.05, 1.1, 1.2), "dc": "hard"},
+    "boss": {"win": 8, "shape": (1.0, 1.3, 1.8), "dc": "desperate"},
+}
 
 
-def parse_rating(scale, text):
-    """Turn 46.7, 'IG 5', 'Inner Gate 5th' or 'B-rank' into a rating."""
-    if isinstance(text, (int, float)):
-        return text
-    text = str(text).strip()
-    try:
-        return float(text)
-    except ValueError:
-        pass
-    m = re.match(r"^(.*?)[\s,]*(?:stage\s*)?(\d+)?(?:st|nd|rd|th)?(?:\s*(?:stage|order|layer))?$", text, re.I)
-    name, stage = m.group(1).strip().lower(), int(m.group(2)) if m.group(2) else 1
-    tiers = _tiers(scale)
-    for i, t in enumerate(tiers):
-        if name in (t["name"].lower(), t.get("abbr", "").lower()):
-            stages = t.get("stages", 1)
-            if not 1 <= stage <= stages:
-                raise KeyError(f"{t['name']} has {stages} stage(s); got {stage}")
-            return round(t["floor"] + (stage - 1) * _width(tiers, i) / stages, 1)
-    raise KeyError(f"unknown tier or realm: {text}")
+def rank_of(index):
+    name = LADDER["ranks"][0]["name"]
+    for r in LADDER["ranks"]:
+        if index >= r["from"]:
+            name = r["name"]
+    return name
 
 
-def effective(char, form=None):
-    """Stats after the active form and every current condition are applied."""
-    stats = {s: char.get("stats", {}).get(s, 0) for s in STATS}
-    applied = []
-    if form:
-        forms = {k.lower(): (k, v) for k, v in char.get("forms", {}).items()}
-        if form.lower() not in forms:
-            raise KeyError(f"unknown form: {form}")
-        name, data = forms[form.lower()]
-        for s, d in data.get("mods", {}).items():
-            stats[s] += d
-        applied.append(f"form {name}" + (f" (cost: {data['cost']})" if data.get("cost") else ""))
-    for cond in char.get("conditions", []):
-        for s, d in cond.get("mods", {}).items():
-            stats[s] += d
-        applied.append(f"condition {cond['name']}")
-    return stats, applied
+def mori_index(L):
+    s = L["stats"]
+    return round((s["Str"] * (s["Str"] + s["Agi"]) / 2) ** 0.5, 1)
 
 
-def overall(stats):
-    return round(0.3 * stats["ap"] + 0.25 * stats["dur"] + 0.3 * stats["spd"] + 0.15 * stats["sta"], 1)
+def foe_index(f):
+    if not (f.get("SPD") and f.get("ATK")):
+        return None
+    return round((f["SPD"] * f["ATK"]) ** 0.5, 1)
 
 
-def evidence(scale, char):
-    """What the feats on record actually support, stat by stat."""
-    rules = scale["evidence"]
+def wound(kr, tier):
+    """Share of the foe's health one landed strike removes, from gm.py's kill table."""
+    table = [(2.0, (1, 1, 0.6)), (1.5, (1, 0.75, 0.45)), (1.0, (1, 0.4, 0.12)),
+             (0.67, (0.3, 0.15, 0)), (0.5, (0.12, 0, 0)), (0, (0, 0, 0))]
+    for lim, vals in table:
+        if kr >= lim:
+            return vals[("STRONG", "CLEAN", "PARTIAL").index(tier)]
+
+
+def outcome(gm, R, d):
+    if R["edge"] == "auto":
+        return "CLEAN" if d != 1 else "PARTIAL"
+    if R["edge"] == "autofail":
+        return "FAIL"
+    return gm.tier(d, d + R["ev"] + R["tech"] + R["msum"], R["dc"])
+
+
+def chances(gm, R):
     out = {}
-    for s in STATS:
-        feats = [f for f in char.get("feats", []) if f["stat"] == s]
-        shown = sorted((f for f in feats if f.get("kind", "shown") == "shown"),
-                       key=lambda f: -f["rating"])
-        stated = sorted((f for f in feats if f.get("kind") == "stated"), key=lambda f: -f["rating"])
-        outliers = [f for f in shown if f.get("outlier")]
-        shown = [f for f in shown if not f.get("outlier")]
-        # A lone feat far above everything else is an outlier until repeated.
-        while len(shown) >= 2 and shown[0]["rating"] - shown[1]["rating"] > rules["outlier_gap"]:
-            outliers.append(shown.pop(0))
-        supported, basis = None, "none"
-        if shown:
-            supported, basis = shown[0]["rating"], "shown"
-            if stated and stated[0]["rating"] > supported:
-                supported = min(stated[0]["rating"], supported + rules["statement_bonus"])
-                basis = "shown+stated"
-        elif stated:
-            supported, basis = stated[0]["rating"], "stated only"
-        out[s] = {"supported": supported, "basis": basis, "outliers": outliers,
-                  "count": len(shown) + len(stated)}
+    for d in range(1, 21):
+        t = outcome(gm, R, d)
+        out[t] = out.get(t, 0) + 5
     return out
 
 
-def _band(scale, gap):
-    for b in scale["bands"]:
-        if gap >= b["min_gap"]:
-            return b["name"]
-    return "impossible"
+def _compute(game, L, action, foe_id, **kw):
+    try:
+        return game.gm.compute(L, game.foes, action, foe_id, **kw)
+    except SystemExit as e:
+        raise KeyError(f"gm.py refused {action} vs {foe_id}: {e}")
 
 
-def _shift(band, steps):
-    i = max(0, min(len(BAND_ORDER) - 1, BAND_ORDER.index(band) + steps))
-    return BAND_ORDER[i]
-
-
-def win_chance(dc, mod):
-    """Chance that d20 + mod meets dc. A natural 1 fails, a natural 20 succeeds."""
-    need = dc - mod
-    hits = sum(1 for r in range(1, 21) if r != 1 and (r == 20 or r >= need))
-    return hits / 20
-
-
-def matchup(scale, canon, a_name, b_name, a_form=None, b_form=None):
-    """Judge A against B from A's side."""
-    a_key, a = C.get(canon, a_name)
-    b_key, b = C.get(canon, b_name)
-    sa, a_applied = effective(a, a_form)
-    sb, b_applied = effective(b, b_form)
-    rules = scale["matchup"]
-    notes = []
-
-    a_dmg = sa["ap"] - sb["dur"]
-    b_dmg = sb["ap"] - sa["dur"]
-    spd = sa["spd"] - sb["spd"]
-    sta = sa["sta"] - sb["sta"]
-    gap = round(0.25 * (a_dmg - b_dmg) + 0.3 * spd + 0.2 * sta, 1)
-    band = _band(scale, gap)
-
-    a_blocked = a_dmg <= -rules["no_damage_gap"]
-    b_blocked = b_dmg <= -rules["no_damage_gap"]
-    if spd >= rules["blitz_gap"]:
-        notes.append(f"{a_key} blitzes: {b_key} cannot react at this speed gap ({spd:+}).")
-        band = _shift(band, -1)
-    elif spd <= -rules["blitz_gap"]:
-        notes.append(f"{b_key} blitzes: {a_key} cannot react at this speed gap ({spd:+}).")
-        band = _shift(band, 1)
-
-    def hax(user, user_key, target, target_stats, target_key):
-        found = []
-        for name in user.get("abilities", []):
-            ab = canon.get("abilities", {}).get(name)
-            if not ab or not ab.get("bypasses_durability"):
-                continue
-            resist = target.get("resist", {}).get(ab["kind"], target_stats["dur"] - rules["default_resist_penalty"])
-            if ab["potency"] >= resist:
-                found.append(f"{user_key}'s {name} ({ab['kind']} {ab['potency']}) beats {target_key}'s "
-                             f"resistance ({resist}): a real win condition"
-                             + (f", cost: {ab['cost']}" if ab.get("cost") else "") + ".")
-        return found
-
-    a_hax = hax(a, a_key, b, sb, b_key)
-    b_hax = hax(b, b_key, a, sa, a_key)
-    notes += a_hax + b_hax
-
-    if a_blocked and not a_hax:
-        notes.append(f"{a_key} cannot meaningfully damage {b_key} (AP {sa['ap']} vs DUR {sb['dur']}). "
-                     "A win needs a weakness, an outside factor or a new power, and the scene must show it.")
-        band = _shift(max(band, "beyond", key=BAND_ORDER.index), 0)
-    elif a_hax and BAND_ORDER.index(band) > BAND_ORDER.index("hard"):
-        band = _shift(band, -1)
-    if b_blocked and not b_hax:
-        notes.append(f"{b_key} cannot meaningfully damage {a_key} (AP {sb['ap']} vs DUR {sa['dur']}).")
-        band = min(band, "trivial", key=BAND_ORDER.index)
-    elif b_hax and BAND_ORDER.index(band) < BAND_ORDER.index("easy"):
-        band = _shift(band, 1)
-
-    tech_mod = max(-rules["tech_cap"], min(rules["tech_cap"], round((sa["tec"] - sb["tec"]) / rules["tech_divisor"])))
-    if a_blocked and not a_hax:
-        tech_mod = min(tech_mod, 0)  # skill alone does not get through hide it cannot cut
-    dc = scale["difficulty"].get(band)
-    if band == "auto":
-        chance = 1.0
-    elif band == "impossible":
-        chance = 0.0
-    else:
-        chance = win_chance(dc, tech_mod)
-
-    if abs(gap) < 3:
-        verdict = "Even fight: skill, terrain and the dice decide it."
-    elif gap > 0:
-        verdict = f"{a_key} is favored" + (" overwhelmingly." if gap >= 15 else " clearly." if gap >= 8 else ".")
-    else:
-        verdict = f"{b_key} is favored" + (" overwhelmingly." if gap <= -15 else " clearly." if gap <= -8 else ".")
-
-    return {
-        "a": a_key, "b": b_key, "a_stats": sa, "b_stats": sb,
-        "a_tier": tier_of(scale, overall(sa)), "b_tier": tier_of(scale, overall(sb)),
-        "a_overall": overall(sa), "b_overall": overall(sb),
-        "applied": a_applied + b_applied,
-        "gap": gap, "band": band, "dc": dc, "tech_mod": tech_mod, "chance": chance,
-        "a_blocked": a_blocked and not a_hax, "verdict": verdict, "notes": notes,
-    }
-
-
-def audit(scale, canon):
-    """Find stats without evidence, lowballed stats, outliers and results that contradict the numbers."""
-    findings = []
-    tol = scale["evidence"]["tolerance"]
-    for name, char in canon["characters"].items():
-        ev = evidence(scale, char)
-        for s in STATS:
-            declared = char.get("stats", {}).get(s)
-            e = ev[s]
-            if declared is None:
-                continue
-            base = parse_rating(scale, char["realm"]) if char.get("realm") else None
-            if e["supported"] is None and base is None:
-                findings.append(("warn", "no-evidence", f"{name} {s} {declared}: no feat on record."))
-            elif e["supported"] is None:
-                if declared > base + tol:
-                    findings.append(("warn", "above-realm", f"{name} {s} is {declared}, {declared - base:+.1f} over the "
-                                     f"{char['realm']} baseline ({base}), with no feat to back it."))
-                continue
-            elif declared > max(e["supported"], base or 0) + tol:
-                findings.append(("error", "inflated", f"{name} {s} is {declared} but feats support {e['supported']} ({e['basis']})."))
-            elif declared < e["supported"] - tol:
-                findings.append(("warn", "lowballed", f"{name} {s} is {declared} but feats support {e['supported']}; raise the stat or mark the feat an outlier."))
-            if e["basis"] == "stated only":
-                findings.append(("note", "statement-only", f"{name} {s} rests on statements alone; show it in a scene."))
-            for f in e["outliers"]:
-                findings.append(("note", "outlier", f"{name} {s} {f['rating']} ({f.get('desc', '?')}) is an outlier and is not counted."))
-
-    upset_gap = scale["matchup"]["upset_gap"]
-    fair = {}
-    for r in canon.get("results", []):
-        w, l = C.resolve(canon, r["winner"]), C.resolve(canon, r["loser"])
-        if not w or not l or r.get("conditions"):
+def best_attack(game, L, foe_id):
+    """Body kick or weak-point kick: whichever removes more health per attempt."""
+    best = None
+    for weak in (False, True):
+        if weak and not game.foes[foe_id].get("T_weak"):
             continue
-        fair.setdefault(w, set()).add(l)
-        m = matchup(scale, canon, w, l)
-        if m["gap"] <= -upset_gap:
-            findings.append(("error", "result-contradiction",
-                             f"{w} beat {l} fair and square ({r.get('scene', '?')}) but the stats put {w} at {m['gap']:+}. "
-                             f"Raise {w}, lower {l}, or record the conditions that made it possible."))
-    for a, beaten in fair.items():
-        for b in beaten:
-            if a < b and a in fair.get(b, ()):
-                findings.append(("warn", "split-results", f"{a} and {b} have both beaten each other with no conditions recorded."))
-    return findings
+        R = _compute(game, L, "hit", foe_id, weak=weak)
+        if "kr" not in R:
+            continue
+        ch = chances(game.gm, R)
+        exp = sum(ch.get(t, 0) / 100 * wound(R["kr"], t) for t in ("STRONG", "CLEAN", "PARTIAL"))
+        if best is None or exp > best[0]:
+            best = (exp, weak, R)
+    return best
+
+
+def simulate(game, L0, foe_id, fights=600, max_rounds=40, seed=7):
+    """Play the fight forward: each round Mori strikes once and defends once.
+
+    HP, fatigue and the penalties gm.py hangs on them change as the fight goes,
+    so a long fight is harder than its first exchange suggests."""
+    rng = random.Random(seed)
+    gm, wins, rounds, hp_left = game.gm, 0, 0, 0
+    cache = {}
+
+    def odds(L, action, weak=False):
+        hp = L["hp"] / max(1, L["hp_max"])
+        key = (action, weak, min(L["fatigue"], 90) // 10, 0 if hp < 0.1 else 1 if hp < 0.3 else 2 if hp < 0.5 else 3)
+        if key not in cache:
+            cache[key] = _compute(game, L, action, foe_id, weak=weak)
+        return cache[key]
+
+    plan = best_attack(game, L0, foe_id)
+    for _ in range(fights):
+        L = dict(L0, hp=L0["hp"], fatigue=L0.get("fatigue", 0))
+        foe_hp, r = 1.0, 0
+        while r < max_rounds and L["hp"] > 0 and foe_hp > 0:
+            r += 1
+            if plan:
+                R = odds(L, "hit", plan[1])
+                t = outcome(gm, R, rng.randint(1, 20))
+                if t in ("STRONG", "CLEAN", "PARTIAL"):
+                    foe_hp -= wound(R["kr"], t)
+                L["fatigue"] = min(100, L["fatigue"] + FATIGUE.get(R["band"], 2))
+                if foe_hp <= 0:
+                    break
+            R = odds(L, "dodge")
+            t = outcome(gm, R, rng.randint(1, 20))
+            if t in ("PARTIAL", "FAIL", "FAIL+") and "dmg" in R:
+                lo, hi = R["dmg"]
+                hurt = rng.randint(lo, hi) if hi > lo else lo
+                L["hp"] -= round(hurt * (0.5 if t == "PARTIAL" else 1.5 if t == "FAIL+" else 1))
+            L["fatigue"] = min(100, L["fatigue"] + FATIGUE.get(R["band"], 2))
+        if foe_hp <= 0 and L["hp"] > 0:
+            wins += 1
+            rounds += r
+            hp_left += L["hp"] / L["hp_max"]
+    return {"win": round(100 * wins / fights), "rounds": round(rounds / wins, 1) if wins else None,
+            "hp_left": round(100 * hp_left / wins) if wins else None}
+
+
+def classify(win, hp_left=100):
+    name = next(name for lim, name in CLASSES if win >= lim)
+    return "favoured" if name == "fodder" and (hp_left or 0) < 85 else name   # fodder does not cost a quarter of his health
+
+
+def matchup(game, foe_id, level=None, sims=600):
+    foe_id = game.foe(foe_id)
+    f = game.foes[foe_id]
+    now, fresh = game.sheet(level), game.sheet(level, fresh=True)
+    out = {"id": foe_id, "foe": f, "level": fresh["level"], "lines": []}
+    for label, action, weak in (("kick", "hit", False), ("kick, weak point", "hit", True), ("dodge", "dodge", False),
+                                ("read", "read", False), ("endure", "endure", False)):
+        if weak and not f.get("T_weak"):
+            continue
+        R = _compute(game, fresh, action, foe_id, weak=weak)
+        line = f"{label:<17} DC {R['dc']:>2} ({R['band']}) edge {game.gm.fmt_e(R['edge']):>4} tech {R['tech']:+} -> {R['p']:>3}%"
+        if "kr" in R and action == "hit":
+            line += f" | KP {R['kp']:.0f} vs T {R['T']} = {R['kr']:.2f}: {R['kill']['CLEAN']}"
+        out["lines"].append(line)
+        out[label] = R
+    R = out["dodge"]
+    if "dmg" in R:
+        lo, hi = R["dmg"]
+        out["hits_to_down"] = (max(1, -(-fresh["hp_max"] // max(1, hi))), max(1, -(-fresh["hp_max"] // max(1, lo))) if lo else None)
+        out["taken"] = (lo, hi, R["tr"])
+    out["fresh"] = simulate(game, fresh, foe_id, sims)
+    out["now"] = simulate(game, now, foe_id, sims) if not level and now["hp"] > 0 else None
+    out["class"] = classify(out["fresh"]["win"], out["fresh"]["hp_left"])
+    out["cant_hurt"] = best_attack(game, fresh, foe_id) is None or best_attack(game, fresh, foe_id)[0] == 0
+    return out
+
+
+def audit(game, sims=300):
+    """Check every foe card for missing numbers, internal contradictions and a
+    difficulty label that the numbers do not support."""
+    finds = []
+    add = lambda sev, foe, msg: finds.append((sev, foe, msg))
+    results = {}
+    for fid, f in game.foes.items():
+        missing = [k for k in ("SPD", "ATK", "T", "type", "dc", "name") if f.get(k) in (None, "")]
+        if missing:
+            add("FAIL", fid, "card is missing " + ", ".join(missing))
+            continue
+        if f.get("T_weak") and f["T_weak"] >= f["T"] and f["T"] < 9999:
+            add("FAIL", fid, f"weak point (T_weak {f['T_weak']}) is not softer than the body (T {f['T']})")
+        if not f.get("STEALTH"):
+            add("WARN", fid, "no STEALTH: sense rolls against it will fail to compute")
+        try:
+            m = results[fid] = matchup(game, fid, sims=sims)
+        except KeyError as e:
+            add("FAIL", fid, f"gm.py cannot compute a fight from this card ({e.args[0][-60:]})")
+            continue
+        label = f["dc"] if isinstance(f["dc"], str) else None
+        win = m["fresh"]["win"]
+        if (label in ("trivial", "easy") and win < 50) or (label in ("hard", "desperate", "beyond") and win >= 80):
+            add("WARN", fid, f"card says '{label}' but a rested Lv{m['level']} Mori wins {win}% of whole fights ({m['class']})")
+        if m["cant_hurt"] and label not in ("beyond", "desperate") and "unwinnable" not in f.get("notes", ""):
+            add("WARN", fid, f"a rested Lv{m['level']} Mori cannot wound it even on its weak point; the card only says "
+                f"'{label}'. Note on the card what beats it (allies, a trick, a level) so it is not played as a fair solo fight")
+        typ = f.get("type", "")
+        if typ.startswith("human_"):
+            want, got = typ.split("_", 1)[1] + "-rank", rank_of(foe_index(f))
+            if want != got:
+                add("NOTE", fid, f"typed {want} but its numbers sit in the {got} band (index {foe_index(f)})")
+    # members of one family should get stronger with their title
+    ids = sorted(game.foes)
+    for a in ids:
+        for b in ids:
+            if b.startswith(a + "_") and a in results and b in results:
+                fa, fb = game.foes[a], game.foes[b]
+                weaker = [k for k in ("ATK", "T") if fb.get(k, 0) < fa.get(k, 0)]
+                if weaker and not b.endswith(("hatchling", "pup", "larva", "minion")):
+                    add("WARN", b, f"is a senior form of {a} but has lower {', '.join(weaker)}")
+                if b.endswith(("hatchling", "pup", "larva", "minion")) and fb.get("ATK", 0) > fa.get("ATK", 0):
+                    add("WARN", b, f"is a junior form of {a} but hits harder")
+    return finds, results
+
+
+def _logit(pct):
+    p = min(99, max(1, pct)) / 100
+    return math.log(p / (1 - p))
+
+
+def design(game, role, level=None, name="New Foe", ftype="beast", rank=None, sims=300):
+    """Build a foe card from the fight it should give.
+
+    The card is grown step by step and the whole fight is replayed with gm.py's
+    numbers at each step; the card whose win rate lands closest to the role's
+    target is returned. With rank=, the card is scaled into that rank's band
+    instead and the forecast shows what that means for Mori."""
+    if role not in ROLES:
+        raise KeyError(f"role must be one of {', '.join(ROLES)}")
+    spec, L = ROLES[role], game.sheet(level, fresh=True)
+    saved = game.foes
+    game.foes = dict(saved, _probe={"name": name, "SPD": 10, "ATK": 10, "T": 10, "type": ftype})
+    try:
+        kp = _compute(game, L, "hit", "_probe")["kp"]
+        pace, con, sense = (L["stats"]["Str"] + L["stats"]["Agi"]) / 2, L["stats"]["Con"], L["stats"]["Sense"]
+        fs, fa, ft = spec["shape"]
+
+        def card(k):
+            return {"name": name, "SPD": max(1, round(pace * fs * k)), "ATK": max(1, round(con * fa * k)),
+                    "T": max(2, round(kp * ft * k)), "T_weak": max(1, round(kp * ft * k / 1.5)),
+                    "STEALTH": max(1, round(sense * fs * k)), "type": ftype, "dc": spec["dc"],
+                    "notes": f"designed as {role} for a Lv{L['level']} Mori"}
+
+        if rank:
+            band = next((r for r in LADDER["ranks"] if r["name"].lower() == rank.lower()), None)
+            if not band:
+                raise KeyError(f"unknown rank '{rank}'")
+            base = card(1.0)
+            best = card(band["from"] * 1.35 / (base["SPD"] * base["ATK"]) ** 0.5)   # middle of the band
+            best["notes"] = f"{band['name']} {role}"
+        else:
+            best, gap = None, None
+            for step in range(8, 61):                       # k from 0.40 to 3.00
+                c = card(step / 20)
+                game.foes["_probe"] = c
+                g = abs(_logit(simulate(game, L, "_probe", sims)["win"]) - _logit(spec["win"]))
+                if gap is None or g < gap:
+                    best, gap = c, g
+        game.foes["_probe"] = best
+        m = matchup(game, "_probe", level, max(sims, 600))
+    finally:
+        game.foes = saved
+    m["target"] = None if rank else spec["win"]
+    return best, m

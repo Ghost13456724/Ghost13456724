@@ -1,1 +1,1 @@
-"""novelbot: canon keeper, power scaler and scene reviewer for novel-style text games."""
+"""novelbot: power scaling, state audit and scene checks for a gm.py game folder."""

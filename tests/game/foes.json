@@ -1,0 +1,46 @@
+{
+ "dokkaebi": {
+  "SPD": 9,
+  "ATK": 10,
+  "T": 14,
+  "T_weak": 9,
+  "type": "beast",
+  "dc": "easy",
+  "STEALTH": 12,
+  "name": "Dokkaebi",
+  "notes": ""
+ },
+ "dokkaebi_ringleader": {
+  "SPD": 11,
+  "ATK": 15,
+  "T": 18,
+  "T_weak": 12,
+  "type": "beast",
+  "dc": "even",
+  "STEALTH": 12,
+  "name": "Dokkaebi Ringleader",
+  "notes": ""
+ },
+ "union_thug": {
+  "SPD": 10,
+  "ATK": 14,
+  "T": 16,
+  "T_weak": 11,
+  "type": "human_D",
+  "dc": "even",
+  "STEALTH": 8,
+  "name": "Union Thug",
+  "notes": ""
+ },
+ "stone_guard": {
+  "SPD": 18,
+  "ATK": 45,
+  "T": 150,
+  "T_weak": 100,
+  "type": "construct",
+  "dc": "desperate",
+  "STEALTH": 10,
+  "name": "Stone Guard",
+  "notes": "unwinnable"
+ }
+}
