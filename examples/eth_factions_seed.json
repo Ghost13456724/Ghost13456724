@@ -22,28 +22,6 @@
     }
    ]
   },
-  "asgard": {
-   "name": "Asgard",
-   "realm": "The Dominions",
-   "goal": "Find the one being fate cannot weave, and have him lead the fight against the End",
-   "steps": [
-    {
-     "id": "odin1",
-     "day": 2,
-     "text": "Ha Sion's memory of the 0.0 reading and the iron ring goes to Asgard by raven",
-     "trace": "Crows line the St. Mary's roof; one follows Mori home",
-     "then": [
-      {
-       "after": 5,
-       "id": "odin2",
-       "text": "Ha Sion pulls the 2041 street-fight video and the Jin family's Gate records",
-       "trace": "His sister finds a KAB terminal's login in the ward's access log",
-       "chance": 80
-      }
-     ]
-    }
-   ]
-  },
   "korean_awakener_bureau_kab": {
    "name": "Korean Awakener Bureau (KAB)",
    "steps": [
@@ -125,6 +103,28 @@
      "day": 366,
      "text": "The Register's date for the body named Jin Mori arrives (14 March 2048)",
      "stops_if": "the page is torn"
+    }
+   ]
+  },
+  "inspector_ha_sion": {
+   "name": "Inspector Ha Sion",
+   "realm": "Earth",
+   "goal": "Understand a meter that read 0.0. He does not know what Mori is, and neither does anyone he answers to",
+   "steps": [
+    {
+     "id": "sion1",
+     "day": 2,
+     "text": "Ha Sion leaves the 0.0 reading out of the official file and keeps a private note. The crow keeps watching, and sees only an odd E-rank: the ring hides its wearer from divine sight",
+     "trace": "Crows on the St. Mary's roofline; one is on the wall of the dojang again",
+     "then": [
+      {
+       "after": 5,
+       "id": "sion2",
+       "text": "Ha Sion pulls the 2041 street-fight video and the Jin family's Gate records, out of his own curiosity",
+       "trace": "His sister finds a KAB terminal's login in the ward's access log",
+       "chance": 80
+      }
+     ]
     }
    ]
   }
