@@ -237,12 +237,13 @@ def missing_cards(game, techs):
     from . import scene as SC
     L, out = game.ledger, []
     names = " ".join(t["name"].lower() for t in techs.values())
-    art = mastery(L, "Renewal Taekwondo") or 0
-    for name, need in SC.technique_levels(game).items():
-        if need <= art and name not in names:
+    for name, (need, has) in SC.technique_levels(game).items():
+        if need <= has and name not in names:
             out.append(f"{name.title()} (opened at mastery {need})")
     for skill in L.get("skills", {}):
         base = re.sub(r"\s*\(.*", "", skill).lower()
+        if "passive" in skill.lower():
+            continue                                      # a passive is the rulings keeper's business, not a move
         if "taekwondo" not in base and base not in names and not any(base in (t.get("needs", {}).get("skill", "").lower()) for t in techs.values()):
             out.append(f"{skill} (a skill on the sheet)")
     return out

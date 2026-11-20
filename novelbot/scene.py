@@ -28,14 +28,38 @@ def rules(game):
     return r
 
 
-def technique_levels(game):
-    """'M5 **Ground Drawer**' in SKILL_TREES.md -> {'ground drawer': 5}"""
-    out = {}
+def technique_trees(game):
+    """SKILL_TREES.md by tree: {'renewal taekwondo': {'ground drawer': 5, ...}, 'limiter needle and point work': {...}}"""
+    trees, cur = {}, None
     for line in game.text("SKILL_TREES.md").splitlines():
+        h = re.match(r"##\s*(?:\d+\.\s*)?([^(.]+)", line)
+        if h:
+            cur = trees.setdefault(h.group(1).strip().lower(), {})
+            continue
         m = re.match(r"\s*-\s*M(\d)\s+(.*)", line)
-        if m:
+        if m and cur is not None:
             for name in re.findall(r"\*\*([^*]+)\*\*", m.group(2)):
-                out[name.strip().lower()] = int(m.group(1))
+                cur[name.strip().lower()] = int(m.group(1))
+    return trees
+
+
+def tree_mastery(L, tree):
+    """His mastery in a tree: the sheet skill whose name shares a word with the tree's title, else 0."""
+    words = set(re.findall(r"[a-z]{4,}", tree))
+    for skill, val in L.get("skills", {}).items():
+        if words & set(re.findall(r"[a-z]{4,}", skill.lower())):
+            m = re.match(r"\s*(\d+)", str(val))
+            return int(m.group(1)) if m else 1
+    return 0
+
+
+def technique_levels(game):
+    """Every named technique with the mastery that opens it and his mastery in its tree: {name: (needs, has)}"""
+    out = {}
+    for tree, names in technique_trees(game).items():
+        has = tree_mastery(game.ledger, tree)
+        for name, need in names.items():
+            out[name] = (need, has)
     return out
 
 
@@ -100,19 +124,15 @@ def check(game, text, turn=False):
             if word != want:
                 add("FAIL", f"result reads {word} but {total} vs DC {dcv} on a {key[0]} is {want}", i)
 
-    # techniques above Mori's mastery
-    mastery = 0
-    for skill, val in L.get("skills", {}).items():
-        m = re.match(r"\s*(\d+)", str(val))
-        if m and "taekwondo" in skill.lower():
-            mastery, note = int(m.group(1)), str(val).lower()
-            for name, need in technique_levels(game).items():
-                if need > mastery and name not in note:
-                    for i, l in enumerate(lines, 1):
-                        if re.search(rf"\b{re.escape(name)}\b", l, re.I):
-                            add("WARN", f"'{name.title()}' opens at mastery {need}; Mori is at {mastery}. Fine if someone else "
-                                "does it or he fails at it; otherwise it needs an earned unlock", i)
-                            break
+    # techniques above Mori's mastery in their own tree
+    sheet = " ".join(str(v) for v in L.get("skills", {}).values()).lower()
+    for name, (need, has) in technique_levels(game).items():
+        if need > has and name not in sheet and len(name) > 5:
+            for i, l in enumerate(lines, 1):
+                if re.search(rf"\b{re.escape(name)}\b", l, re.I):
+                    add("WARN", f"'{name.title()}' opens at mastery {need}; Mori is at {has} in that art. Fine if someone else "
+                        "does it or he fails at it; otherwise it needs an earned unlock", i)
+                    break
 
     # things Mori cannot say, own or do
     for name in lost_names(game):
