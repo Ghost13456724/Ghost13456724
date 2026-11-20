@@ -149,3 +149,70 @@ def mark_branch(data, keep_shas, stamp):
             s["branch"] = stamp
             n += 1
     return n
+
+
+def _clock(text):
+    """'5:30 a.m.' -> '05:30', 'Midnight' -> '00:00', '10:00 a.m.' -> '10:00'"""
+    if re.search(r"\bmidnight\b", text, re.I):
+        return "00:00"
+    if re.search(r"\bnoon\b", text, re.I):
+        return "12:00"
+    m = re.search(r"(\d{1,2}):(\d{2})\s*([ap])\.?m\.?", text, re.I)
+    if not m:
+        return None
+    h = int(m.group(1)) % 12 + (12 if m.group(3).lower() == "p" else 0)
+    return f"{h:02d}:{m.group(2)}"
+
+
+def split_story(text):
+    """Cut a 'story so far' document into scenes.
+
+    A heading starts a scene ('## Day 1. Friday, 15 March. 7:10 a.m. ...' also sets the day and opens a chapter).
+    A line '*Choice: ...*' ends a scene and records the choice. A section called 'Where things stand' is a summary
+    and is left out."""
+    scenes, cur, day, tm, chapter, skipping = [], None, 0, None, None, False
+
+    def close(choice=None):
+        nonlocal cur
+        if cur and "\n".join(cur["lines"]).strip():
+            cur["text"] = "\n".join(cur["lines"]).strip()
+            cur["choice"] = choice
+            scenes.append(cur)
+        cur = None
+
+    for line in text.splitlines():
+        h = re.match(r"(#{2,4})\s+(.*)", line)
+        c = re.match(r"\s*\*Choice:\s*(.*?)\*\s*$", line)
+        if h:
+            close()
+            head = h.group(2).strip()
+            skipping = bool(re.match(r"where things stand", head, re.I))
+            d = re.match(r"Day (\d+)\b", head)
+            if d:
+                day = int(d.group(1))
+                when = re.sub(r"\s*\d{1,2}:\d{2}\s*[ap]\.?m\.?.*|\s*Midnight.*", "", re.sub(r"^Day \d+\.?\s*", "", head)).strip(" .")
+                chapter = f"Day {day}" + (f": {when}" if when else "")
+            tm = _clock(head) or tm
+            title = re.sub(r"^Day \d+\.[^.]*\.\s*|^\s*(?:\d{1,2}:\d{2}\s*[ap]\.?m\.?|Midnight)\.?\s*", "", head).strip(" .")
+            title = re.sub(r"^(?:\d{1,2}:\d{2}\s*[ap]\.?m\.?|Midnight|Noon)\.?\s*", "", title, flags=re.I).strip(" .")
+            cur = {"title": title or None, "day": day, "time": tm, "chapter": chapter, "lines": []}
+        elif skipping or line.startswith("# ") or line.strip() == "---":
+            continue
+        elif c:
+            close(c.group(1).strip().rstrip("."))
+            cur = {"title": None, "day": day, "time": tm, "chapter": chapter, "lines": []}
+        elif cur is not None:
+            cur["lines"].append(line)
+    close()
+    return scenes
+
+
+def import_story(game, data, text, plan):
+    scenes = split_story(text)
+    for sc in scenes:
+        before = len(data["scenes"])
+        add(game, data, sc["text"], plan, sc["title"], sc["chapter"], None, sc["day"], sc["time"])
+        if len(data["scenes"]) > before:
+            data["scenes"][-1]["choice"] = sc["choice"]
+    plan.notes[:] = [n for n in plan.notes if "no recorded choice" not in n and "choice recorded" not in n]
+    plan.note(f"{len(scenes)} scenes read from the story file")

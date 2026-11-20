@@ -79,8 +79,8 @@ def main(argv=None):
                                       "bump <id> <foe> | reset <id> <foe> | use <id> | mods <foe> | dice | audit")
     sp.add_argument("verb", choices=["list", "scan", "import", "add", "set", "rm", "bump", "reset", "use", "mods", "dice", "audit"])
     sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
-    sp = sub.add_parser("archive", help="archivist: add <scene file> | list | book | recap [n] | choice <n> <text> | summary <n> <text> | chapter <n> <name>")
-    sp.add_argument("verb", choices=["add", "list", "book", "recap", "choice", "summary", "chapter", "title"])
+    sp = sub.add_parser("archive", help="archivist: add <scene file> | import <story file> | list | book | recap [n] | choice <n> <text> | summary <n> <text> | chapter <n> <name>")
+    sp.add_argument("verb", choices=["add", "import", "list", "book", "recap", "choice", "summary", "chapter", "title"])
     sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
     sp.add_argument("--title"); sp.add_argument("--chapter"); sp.add_argument("--choice"); sp.add_argument("--day", type=int); sp.add_argument("--time")
     sp.add_argument("--raw", action="store_true", help="book: keep dice lines and option menus")
@@ -291,6 +291,9 @@ def main(argv=None):
                 path = r[0] if os.path.exists(r[0]) else g.path(r[0])
                 with open(path, encoding="utf-8") as f:
                     AR.add(g, data, f.read(), plan, a.title, a.chapter, a.choice, a.day, a.time)
+            elif v == "import":
+                with open(r[0] if os.path.exists(r[0]) else g.path(r[0]), encoding="utf-8") as f:
+                    AR.import_story(g, data, f.read(), plan)
             elif v in ("choice", "summary", "chapter", "title"):
                 sc = next((x for x in data["scenes"] if x["n"] == int(r[0])), None)
                 if sc is None:

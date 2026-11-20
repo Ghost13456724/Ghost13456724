@@ -117,11 +117,17 @@ def check(game, text, turn=False):
         else:
             add("FAIL", f"dice line (d20 {key[0]}" + (f", DC {key[1]}" if key[1] else "") + ") has no matching roll in LOG.md: "
                 "it was not rolled with gm.py, or the number was changed", i)
+        terms = re.search(r"d20\s*\**\d+\**(.*?)=\s*\**(-?\d+)\**\s*vs DC", l)
+        if terms:
+            mods_ = [int(x.replace("−", "-").replace(" ", "")) for x in re.findall(r"(?:^|\s)([+\-−]\s?\d+)\b", terms.group(1))]
+            if key[0] + sum(mods_) != int(terms.group(2)):
+                add("FAIL", f"dice arithmetic: {key[0]} {' '.join(f'{x:+d}' for x in mods_)} is {key[0] + sum(mods_)}, but the line says {terms.group(2)}", i)
+        l = l.replace("−", "-")
         m2 = re.search(r"=\s*\**(-?\d+)\**\s*vs DC\s*(\d+)\s*(?:→|->)\s*\**([A-Za-z ]+\d?)\**", l)
         if m2:
             total, dcv, word = int(m2.group(1)), int(m2.group(2)), m2.group(3).strip().upper()
             want = game.gm.tier(key[0], total, dcv).replace("FAIL+", "NATURAL 1")
-            if word != want:
+            if word in ("STRONG", "CLEAN", "PARTIAL", "FAIL", "NATURAL 1") and word != want:
                 add("FAIL", f"result reads {word} but {total} vs DC {dcv} on a {key[0]} is {want}", i)
 
     # techniques above Mori's mastery in their own tree

@@ -383,6 +383,41 @@ class ArchiveTests(Base):
         self.assertIn('<p class="sys">[You have returned.]</p>', page)
         self.assertIn('<p class="choice"><b>You chose:</b> Hide</p>', page)
 
+    STORY = ("# THE STORY\n\n*intro note*\n\n---\n\n## Day 0. Thursday, 14 March 2047. 5:30 a.m. Michuhol-gu, Incheon.\n\n"
+             "You wake.\n\n*Choice: text Daeil, then train.*\n\n---\n\n## 5:40 a.m. Renewal Dojang\n\nYou spin.\n\n"
+             "*Choice: go to the market.*\n\nYou buy fishcakes.\n\n## Day 1. Friday, 15 March. Midnight. The Zone.\n\nHeat.\n\n"
+             "### The first precept: Bow\n\nYou drop.\n\n### Where things stand\n- Mori: Lv 1\n")
+
+    def test_import_a_story_so_far_document(self):
+        scenes = AR.split_story(self.STORY)
+        self.assertEqual([(s["day"], s["time"], s["title"], s["choice"]) for s in scenes], [
+            (0, "05:30", "Michuhol-gu, Incheon", "text Daeil, then train"), (0, "05:40", "Renewal Dojang", "go to the market"),
+            (0, "05:40", None, None), (1, "00:00", "The Zone", None), (1, "00:00", "The first precept: Bow", None)])
+        self.assertEqual(scenes[0]["chapter"], "Day 0: Thursday, 14 March 2047")
+        self.assertNotIn("Lv 1", " ".join(s["text"] for s in scenes))               # the closing summary is not a scene
+
+        def go(g, plan):
+            data = AR.load(g)
+            AR.import_story(g, data, self.STORY, plan)
+            AR.import_story(g, data, self.STORY, plan)                                # importing twice adds nothing
+            plan.put_json(AR.INDEX, data)
+        self.run_plan(go)
+        data = self.get("archive/index.json")
+        self.assertEqual(len(data["scenes"]), 5)
+        g = self.game()
+        md, _ = AR.build(g, AR.load(g))
+        self.assertIn("## Day 0: Thursday, 14 March 2047", md)
+        self.assertIn("### Renewal Dojang", md)
+        self.assertIn("> **You chose:** go to the market", md)
+
+    def test_dice_arithmetic_is_checked(self):
+        with open(os.path.join(self.dir, "LOG.md"), "a") as f:
+            f.write("- D1 09:01: roll read  d12 need 9 (60%) dc11\n- D1 09:02: roll read  d13 need 9 (60%) dc11\n")
+        good = "🎲 **Notice:** d20 **12** −1 −2 (hurt) = **9** vs DC 11 → **PARTIAL**\n"
+        bad = "🎲 **Notice:** d20 **13** −1 −2 (hurt) = **14** vs DC 11 → **CLEAN**\n"
+        self.assertNotIn("dice arithmetic", " | ".join(m for _, m in SC.check(self.game(), good)))
+        self.assertIn("dice arithmetic: 13 -1 -2 is 10, but the line says 14", " | ".join(m for _, m in SC.check(self.game(), bad)))
+
     def test_loading_a_save_sets_later_scenes_aside(self):
         os.makedirs(os.path.join(self.tmp, "saves"))
         self.add(self.S1)
