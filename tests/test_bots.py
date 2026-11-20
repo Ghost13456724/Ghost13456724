@@ -464,7 +464,7 @@ class TechTests(Base):
 
     def test_owned_follows_the_sheet(self):
         g = self.game()
-        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), {k for k in TE.PROPOSED if not k.startswith("ruyi_")} - {"ground_drawer", "dragon_catcher", "true_hoechook"})
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED) - {"ground_drawer", "dragon_catcher", "true_hoechook"})
         g.ledger["skills"] = {"Renewal Taekwondo": "2"}
         self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), {"x_guard"})
 
@@ -522,9 +522,7 @@ class TechTests(Base):
         self.assertEqual((e["kp_mult"], e.get("dc_shift"), e["tech"], c), (1.7, None, 2, {}))    # stronger, no longer awkward, free
         low = TE.load(g)["lowest_hoechook"]
         self.assertEqual(TE.scaled(g.ledger, low)[0]["kp_mult"], 1.0)                              # its weakness is trained out
-        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), {k for k in TE.PROPOSED if not k.startswith("ruyi_")})   # every Renewal card
-        g.ledger["skills"]["Ruyi"] = "2"                                                           # the staff is its own art, opened node by node
-        self.assertEqual({k for k in TE.owned(g.ledger, TE.load(g)) if k.startswith("ruyi_")}, {"ruyi_expand", "ruyi_wall", "ruyi_sink"})
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED))                    # mastery 8 opens every card
         true = TE.load(g)["true_hoechook"]
         self.assertEqual(TE.scaled(g.ledger, true)[1], {"fatigue": 29, "hp_pct": 8})
 

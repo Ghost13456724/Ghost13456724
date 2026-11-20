@@ -13,9 +13,6 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 - `python3 bot.py -g F tech list` shows each card at its current strength, and warns about any technique or skill he owns that has no card. When he learns something new, write its card the same day: `python3 bot.py -g F tech add <id> name="..." action=<hit|dodge|read|...> skill="<skill on his sheet>" [mastery=N] effect.<key>=<value> [cost.fatigue=N] [when.read=1|when.unshown=1|when.opening=1] [opens=1] note="..." --write`. Size it against the cards he has: a new technique should be the best choice in some situation and not in all of them.
 - After any change (a new card, a mastery level, a rank-up message), run `python3 bot.py -g F tech install --write` so gm.py has the current numbers. The tool says when the ledger is behind.
 
-## The Ruyi is not a staff style
-When it returns, he does not fight with staff forms. He commands it ("Expand." "Shrink." "Sink." "Come to me."), uses its size and weight, plants it as a wall, a pillar or a vault, and drives Renewal's spin through it. Its cards (`ruyi_*`) stay locked until a skill named `Ruyi` is on his sheet (`gm.py skill "Ruyi" 1`), then open node by node with its mastery. Its limits are part of every scene: at full size he cannot move it, and it ignores him when he is spent or the Fillet tightens. Before that day he is bare-handed, and no ordinary staff appears in his hands.
-
 ## Before the fight
 - `python3 bot.py -g F fight <foe>` for the forecast. If the verdict is DO NOT FIGHT, tell the GM before the first roll what the scene has to supply (allies, a trick, a rule to break, a way out).
 - `python3 bot.py -g F tech install --write` if a technique was learned since the last fight.

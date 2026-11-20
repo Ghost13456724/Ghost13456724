@@ -46,28 +46,6 @@ PROPOSED = {
         "name": "True Hoechook", "action": "hit", "strike": "kick", "needs": {"skill": "Renewal Taekwondo", "mastery": 7},
         "effect": {"kp_mult": 2.5, "dc_shift": 1}, "cost": {"fatigue": 30, "hp_pct": 10},
         "note": "palm up, fist clenched, then the vortex. It costs him a tenth of his health and most of his wind"},
-    # The Ruyi is not a quarterstaff. He commands it: size, weight, a pillar, a wall, a piece of terrain, with Renewal's
-    # spin underneath. These stay locked until a skill named "Ruyi" is on his sheet, then open node by node.
-    "ruyi_expand": {
-        "name": "Ruyi: \"Expand.\"", "action": "hit", "strike": "staff", "needs": {"skill": "Ruyi", "mastery": 1},
-        "effect": {"kp_mult": 1.5, "dc_shift": -1}, "cost": {"fatigue": 2},
-        "note": "it grows from his fist as a ram or a pillar; reach nothing can step inside. At full size he cannot move it"},
-    "ruyi_wall": {
-        "name": "Ruyi: planted wall", "action": "dodge", "needs": {"skill": "Ruyi", "mastery": 1},
-        "effect": {"taken_mult": 0.5}, "cost": {"fatigue": 2},
-        "note": "grown and planted between him and the blow; a piece of terrain, not a parry"},
-    "ruyi_sink": {
-        "name": "Ruyi: \"Sink.\"", "action": "hit", "strike": "staff", "needs": {"skill": "Ruyi", "mastery": 2},
-        "effect": {"kp_mult": 1.9, "dc_shift": 1}, "cost": {"fatigue": 4}, "opens": True,
-        "note": "light at the bottom of the swing, 13,500 jin at the end of it; a clean hit pins the target under the weight"},
-    "ruyi_inside": {
-        "name": "Ruyi: grown inside", "action": "hit", "strike": "staff", "needs": {"skill": "Ruyi", "mastery": 3},
-        "effect": {"kp_mult": 2.4}, "when": {"opening": True}, "cost": {"fatigue": 3},
-        "note": "a sliver lodged in a wound, a joint or a mechanism, then told to grow; only on a foe already opened up"},
-    "ruyi_fusion": {
-        "name": "Renewal through the Ruyi", "action": "hit", "strike": "kick", "needs": {"skill": "Ruyi", "mastery": 4},
-        "effect": {"kp_mult": 2.1, "tech": 1}, "cost": {"fatigue": 5},
-        "note": "a Hoechook that ends in a two-handed overhead drive; the kick is still the technique, the rod carries it"},
     "erase_the_rhythm": {
         "name": "Erase the Rhythm", "action": "read", "needs": {"skill": "Erase the Rhythm"},
         "effect": {"tech": 1}, "note": "hold the breath, go loose: reading from stillness"},

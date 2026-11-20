@@ -83,17 +83,7 @@ The scene check then reports any of those names or phrases appearing in a scene 
 Hidden powers and their first moves, taken from GM_SECRETS and the arc card (edit freely; the WORLD_CLOCK keeper carries on from here):
 ```
 $B world import novelbot/examples/eth_factions_seed.json --write
-$B rules add jeju_flicker kind=rule text="Whenever Mori fights all-out, the news later reports that the Jeju Wall flickered at that minute. A clue, never explained." --write
-$B rules add the_staff_is_the_ruyi kind=rule text="Mori's 'staff' means the Ruyi and nothing else. He does not fight with staff forms: he commands it (Expand, Shrink, Sink, Come to me), uses its size and weight, plants it as a wall, pillar or vault, and drives Renewal's spin through it. Until it returns he fights bare-handed, and the System offers him no divine weapon. The Ruyi technique cards unlock when a skill named Ruyi is on his sheet." --write
-$B rules add nobody_knows_yet kind=rule text="Until the Ruyi crosses Korea on camera, no Dominion knows the Monkey lives. The ring hides its wearer from divine sight: Muninn's crow, Wujing and any god's Vessel see only an odd E-rank. The Ferry knows only that something broke a Lure Temple in Incheon. Ha Sion has a meter reading he cannot explain, not an answer. Odin, Mara, Gwon and the rest learn at the Act III showdown, all at once." --write
-$B rules add longevity_is_not_immortality kind=rule text="The blessing's 'Longevity' is regeneration and immunity to ordinary illness. He is still mortal; the immortalities are gone and can only be re-earned at a price." --write
 ```
-In the Murim the tide is about 30 to 1 in 2047: set it with `"tide"` when he Descends.
-
-Two notes for the GM from a read of GM_SECRETS against what has been played:
-- The retroactive quest for the temple (section 3) must not be worded as a Tribulation. The Tribulation count is announced later, as the arc card has it.
-- The Daily Discipline's first task is given two ways: the bible and every scene played say 1,000 Hoechook; the rulings section of GM_SECRETS says 1,000 staff spins. Keep what was played, and correct the note or record why it will change.
-
 ## 6. The book
 Save the full "story so far" text as `eth/story.md`, then:
 ```
