@@ -3,6 +3,6 @@
 - M5 **Ground Drawer** (dust arc); **Dragon Catcher**
 - M7 **True Hoechook**: a vortex
 
-## 2. THE STAFF (later)
-- M3 **Inside** (the staff held inside the ear)
+## 2. THE SPEAR (later)
+- M3 **Inside** (a thrust inside the guard)
 - M2 **Iron Sweep** (a low arc)
