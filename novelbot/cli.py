@@ -113,7 +113,7 @@ def main(argv=None):
     sp = sub.add_parser("ahead", help="lookahead: what is coming, what he cannot survive or afford, and the honest ways back")
     sp.add_argument("days", nargs="?", type=int, default=3)
     sp = sub.add_parser("world", help="world clock: init | status | tick | seen <trace id>")
-    sp.add_argument("verb", choices=["init", "status", "tick", "seen"]); sp.add_argument("arg", nargs="?")
+    sp.add_argument("verb", choices=["init", "status", "tick", "seen", "import"]); sp.add_argument("arg", nargs="?")
     sp.add_argument("--rule", action="append", default=[], help="for a step Mori could have stopped: <step id>=stopped|happened")
     sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
     sub.add_parser("help")
@@ -270,6 +270,9 @@ def main(argv=None):
                 W.tick(g, data, plan, dict(r.split("=", 1) for r in a.rule))
             elif a.verb == "seen":
                 W.surface(data, a.arg, g.stamp(), plan)
+            elif a.verb == "import":
+                with open(a.arg, encoding="utf-8") as f:
+                    W.merge(data, json.load(f), plan)
             if a.verb != "status":
                 plan.put_json("factions.json", data)
                 code = plan.finish(a.write)

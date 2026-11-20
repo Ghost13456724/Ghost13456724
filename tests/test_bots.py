@@ -245,6 +245,17 @@ class WorldTests(Base):
         step = next(s for s in self.get("factions.json")["factions"]["harbour_union"]["steps"] if s["id"] == "a.1")
         self.assertEqual(step["result"], "stopped by Mori")
 
+    def test_merge_adds_hidden_powers_without_overwriting(self):
+        g = self.game()
+        data, plan = W.load(g), Plan(g)
+        extra = {"factions": {"harbour_union": {"name": "Harbour Union", "steps": [{"id": "a", "day": 9, "text": "changed"}, {"id": "z", "day": 5, "text": "new"}]},
+                              "the_ferry": {"name": "The Ferry", "realm": "The Dominions", "goal": "g", "steps": [{"id": "f1", "day": 3, "text": "t"}]}}}
+        W.merge(data, extra, plan)
+        W.merge(data, extra, plan)
+        steps = {s["id"]: s for s in data["factions"]["harbour_union"]["steps"]}
+        self.assertEqual((steps["a"]["text"], steps["z"]["text"], len(steps)), ("files a report", "new", 4))
+        self.assertEqual(data["factions"]["the_ferry"]["realm"], "The Dominions")
+
     def test_status_flags_idle_and_overdue_and_hides_text(self):
         L = self.get("ledger.json")
         L["day"] = 2

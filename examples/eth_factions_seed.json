@@ -1,0 +1,132 @@
+{
+ "factions": {
+  "the_ferry": {
+   "name": "The Ferry",
+   "realm": "The Dominions",
+   "goal": "Recapture the heart and finish the coronation; failing that, make a new Raft",
+   "steps": [
+    {
+     "id": "ferry1",
+     "day": 3,
+     "text": "The fallen Lure Temple's last light reaches the Ferry: something broke it in Incheon. Wujing is sent back.",
+     "trace": "At dawn a quiet man in a grey coat is fishing off the Wolmi seawall, nine dark beads at his throat",
+     "then": [
+      {
+       "after": 4,
+       "id": "ferry2",
+       "text": "Wujing walks Michuhol-gu and searches the padlocked dojang a second time",
+       "trace": "The dojang padlock has been oiled, and there is a wet footprint in the courtyard ring",
+       "stops_if": "Mori is training there when he comes (the pendant goes ice-cold)"
+      }
+     ]
+    }
+   ]
+  },
+  "asgard": {
+   "name": "Asgard",
+   "realm": "The Dominions",
+   "goal": "Find the one being fate cannot weave, and have him lead the fight against the End",
+   "steps": [
+    {
+     "id": "odin1",
+     "day": 2,
+     "text": "Ha Sion's memory of the 0.0 reading and the iron ring goes to Asgard by raven",
+     "trace": "Crows line the St. Mary's roof; one follows Mori home",
+     "then": [
+      {
+       "after": 5,
+       "id": "odin2",
+       "text": "Ha Sion pulls the 2041 street-fight video and the Jin family's Gate records",
+       "trace": "His sister finds a KAB terminal's login in the ward's access log",
+       "chance": 80
+      }
+     ]
+    }
+   ]
+  },
+  "korean_awakener_bureau_kab": {
+   "name": "Korean Awakener Bureau (KAB)",
+   "steps": [
+    {
+     "id": "kab1",
+     "day": 4,
+     "text": "Gwon Taesan reads the W-117 file and has the site sealed pending 'structural survey'",
+     "trace": "KAB trucks and tape at Wolmi; W-117's yellow tag is gone a day early"
+    }
+   ]
+  },
+  "seohae_union_incheon": {
+   "name": "Seohae Union, Incheon",
+   "steps": [
+    {
+     "id": "union1",
+     "day": 5,
+     "text": "Pyo sells the story of a lucky brass ring and a gold Gate to a broker",
+     "trace": "A stranger at Sinpo Market is asking about a porter with a brass ring",
+     "chance": 60,
+     "else_delay": 3,
+     "stops_if": "Mori finds Pyo first"
+    },
+    {
+     "id": "union2",
+     "day": 7,
+     "text": "Boss Gu marks the E-rank who walked out of a sealed room as useful",
+     "trace": "Gangu passes it on, unhappy: Boss Gu wants to meet"
+    }
+   ]
+  },
+  "society_of_the_quiet_bed": {
+   "name": "Society of the Quiet Bed",
+   "steps": [
+    {
+     "id": "bed1",
+     "day": 6,
+     "text": "A third consent packet goes under the Jin flat's door, and a Society visitor sits an hour at Choi Sunhee's bed",
+     "trace": "The night nurse mentions a polite visitor who hummed along with the patient",
+     "then": [
+      {
+       "after": 9,
+       "id": "bed2",
+       "text": "Three new sleepers are admitted to the fourth floor, each stamped SW -0.8",
+       "trace": "Three more beds on the ward; one is somebody's mother from the market"
+      }
+     ]
+    }
+   ]
+  },
+  "daeyang_group": {
+   "name": "Daeyang Group",
+   "steps": [
+    {
+     "id": "cup1",
+     "day": 10,
+     "text": "The Heaven's Cup announces Incheon qualifiers",
+     "trace": "Cup posters on every bus shelter; Daeil signs them both up as a joke"
+    }
+   ]
+  },
+  "black_crane_guild": {
+   "name": "Black Crane Guild",
+   "steps": [
+    {
+     "id": "crane1",
+     "day": 8,
+     "text": "Yeon Hayul clears a green Gate in Songdo alone, on stream",
+     "trace": "The clip is on every phone on the ward; Jung has watched it eleven times"
+    }
+   ]
+  },
+  "the_dead": {
+   "name": "The dead",
+   "realm": "Below",
+   "steps": [
+    {
+     "id": "register",
+     "day": 366,
+     "text": "The Register's date for the body named Jin Mori arrives (14 March 2048)",
+     "stops_if": "the page is torn"
+    }
+   ]
+  }
+ }
+}

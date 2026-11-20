@@ -147,3 +147,16 @@ def surface(data, tid, stamp, plan):
             t["surfaced"] = stamp
             return plan.note(f"trace {tid} marked as seen by Mori at {stamp}")
     plan.error(f"no trace {tid}")
+
+
+def merge(data, extra, plan):
+    """Add factions and steps from a seed file; never overwrites a step that already exists."""
+    for fid, f in extra.get("factions", {}).items():
+        cur = data["factions"].setdefault(fid, {"name": f["name"], "realm": f.get("realm", "Earth"), "goal": "", "steps": []})
+        if f.get("goal") and not cur.get("goal"):
+            cur["goal"] = f["goal"]
+        have = {s["id"] for s in cur["steps"]}
+        new = [s for s in f.get("steps", []) if s["id"] not in have]
+        cur["steps"] += new
+        if new:
+            plan.note(f"{cur['name']}: {len(new)} step(s) added")

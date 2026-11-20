@@ -80,6 +80,15 @@ cp novelbot/examples/eth_secrets_watch.json eth/secrets_watch.json
 ```
 The scene check then reports any of those names or phrases appearing in a scene before its rung of the reveal ladder. It leaves out every term that is already in the player's bible. The CLUE_KEEPER can add more.
 
+Hidden powers and their first moves, taken from GM_SECRETS and the arc card (edit freely; the WORLD_CLOCK keeper carries on from here):
+```
+$B world import novelbot/examples/eth_factions_seed.json --write
+$B rules add jeju_flicker kind=rule text="Whenever Mori fights all-out, the news later reports that the Jeju Wall flickered at that minute. A clue, never explained." --write
+$B rules add bare_handed kind=rule text="Until the Ruyi returns, Mori fights bare-handed, Renewal only. The System never offers him a divine weapon." --write
+$B rules add longevity_is_not_immortality kind=rule text="The blessing's 'Longevity' is regeneration and immunity to ordinary illness. He is still mortal; the immortalities are gone and can only be re-earned at a price." --write
+```
+In the Murim the tide is about 30 to 1 in 2047: set it with `"tide"` when he Descends.
+
 Two notes for the GM from a read of GM_SECRETS against what has been played:
 - The retroactive quest for the temple (section 3) must not be worded as a Tribulation. The Tribulation count is announced later, as the arc card has it.
 - The Daily Discipline's first task is given two ways: the bible and every scene played say 1,000 Hoechook; the rulings section of GM_SECRETS says 1,000 staff spins. Keep what was played, and correct the note or record why it will change.
