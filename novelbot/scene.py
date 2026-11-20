@@ -154,8 +154,12 @@ def check(game, text, turn=False):
         add("NOTE", f"the scene is set on D{m.group(1)}; the ledger is already on D{L['day']} (fine for a scene being reviewed late)")
 
     # secrets: an optional GM-side watch list, never shown to the player
-    watch = game.json("secrets_watch.json", [])
-    rung = max([int(x) for line in game.log for x in re.findall(r"rung (\d+)", line)] or [0])
+    from . import clues as CL, people as PE
+    clue_data = CL.load(game)
+    watch = game.json("secrets_watch.json", []) + CL.watch_list(clue_data)
+    rung = max([clue_data.get("rung", 0)] + [int(x) for line in game.log for x in re.findall(r"rung (\d+)", line)])
+    if game.text("people.json"):
+        finds += PE.scene_findings(PE.load(game), text, lines)
     for w in watch:
         if w.get("rung", 99) > rung:
             for i, l in enumerate(lines, 1):
@@ -163,7 +167,7 @@ def check(game, text, turn=False):
                     add("FAIL", f"secret leak: a rung-{w.get('rung')} truth is on the page while the story is at rung {rung}", i)
                     break
     if not watch:
-        add("NOTE", "no secrets_watch.json: the reviewer must check the reveal ladder by reading")
+        add("NOTE", "no watch patterns (clues.json or secrets_watch.json): the reviewer must check the reveal ladder by reading")
     if dice == 0 and re.search(r"\b(kick|punch|dodge|strike|swing)", text, re.I) and len(lines) > 12:
         add("NOTE", "a fight is described with no dice line shown; confirm every contested action was rolled")
     order = {"FAIL": 0, "WARN": 1, "NOTE": 2}

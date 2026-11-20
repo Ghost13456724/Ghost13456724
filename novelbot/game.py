@@ -4,6 +4,7 @@ All combat numbers come from the folder's own gm.py, so this tool can never
 disagree with the dice engine the game is played with.
 """
 import copy
+import datetime
 import importlib.util
 import json
 import os
@@ -75,3 +76,69 @@ class Game:
             if m:
                 out.append({"action": m.group(1), "foe": m.group(2), "d": int(m.group(3)), "dc": int(m.group(6))})
         return out
+
+    # ---------- writing (only ever through a Plan, and only with --write) ----------
+    def date_of(self, day):
+        from . import sync
+        d0 = sync.day_zero(self)
+        return d0 + datetime.timedelta(days=day) if d0 else None
+
+    def stamp(self):
+        return f"D{self.ledger['day']} {self.ledger.get('time', '')}".strip()
+
+
+class Plan:
+    """Collects file changes, shows them, and writes them only when asked.
+
+    Before the first write of a run every file about to change is copied to
+    .novelbot_bak/<time>/ inside the game folder."""
+
+    def __init__(self, game):
+        self.game, self.files, self.notes, self.errors = game, {}, [], []
+
+    def note(self, text):
+        self.notes.append(text)
+
+    def error(self, text):
+        self.errors.append(text)
+
+    def put_json(self, name, obj):
+        self.files[name] = json.dumps(obj, indent=1, ensure_ascii=False) + "\n"
+
+    def put_text(self, name, text):
+        self.files[name] = text
+
+    def log(self, text):
+        base = self.files.get("LOG.md", self.game.text("LOG.md"))
+        if base and not base.endswith("\n"):
+            base += "\n"
+        self.files["LOG.md"] = base + f"- {self.game.stamp()}: {text}\n"
+
+    def finish(self, write):
+        for n in self.notes:
+            print("  " + n)
+        for e in self.errors:
+            print("  FAIL " + e)
+        if self.errors:
+            print("  nothing written: fix the errors first")
+            return 1
+        changed = [n for n, t in self.files.items() if t != self.game.text(n)]
+        if not changed:
+            print("  no file changes")
+            return 0
+        if not write:
+            print(f"  dry run: would change {', '.join(changed)}. Add --write to apply.")
+            return 0
+        import shutil
+        import time
+        bak = self.game.path(os.path.join(".novelbot_bak", time.strftime("%Y%m%d-%H%M%S")))
+        os.makedirs(bak, exist_ok=True)
+        for n in changed:
+            if os.path.exists(self.game.path(n)) and not os.path.exists(os.path.join(bak, n)):
+                shutil.copy2(self.game.path(n), os.path.join(bak, n))
+            tmp = self.game.path(n) + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(self.files[n])
+            os.replace(tmp, self.game.path(n))
+        print(f"  wrote {', '.join(changed)} (previous versions in {os.path.relpath(bak, self.game.dir)})")
+        return 0

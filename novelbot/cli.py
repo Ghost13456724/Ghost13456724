@@ -4,7 +4,12 @@ import json
 import os
 import sys
 
+from . import book as B
+from . import clues as CL
+from . import people as PE
 from . import scale as S
+from . import world as W
+from .game import Plan
 from . import scene as SC
 from . import sync as SY
 from .game import Game
@@ -50,7 +55,21 @@ def main(argv=None):
     sub.add_parser("sync", help="check the ledger, STATE_NOW, log and event clock against each other")
     sp = sub.add_parser("scene", help="mechanical check of a scene file against the ledger and log")
     sp.add_argument("file", nargs="?", default="LAST_SCENES.md"); sp.add_argument("--turn", action="store_true", help="a full player-facing turn: require the options block")
-    sub.add_parser("all", help="sync + foes + scene on LAST_SCENES.md")
+    sub.add_parser("all", help="sync + foes + scene on LAST_SCENES.md + people, clues and world checks")
+    sp = sub.add_parser("book", help="bookkeeper: apply <delta.json> | fix | template | save <name> | load <name>")
+    sp.add_argument("verb", choices=["apply", "fix", "template", "save", "load"]); sp.add_argument("arg", nargs="?")
+    sp.add_argument("--write", action="store_true", help="actually change the files (default is a dry run)")
+    sp = sub.add_parser("people", help="people tracker: init | show [name] | scan | set <name> k=v ...")
+    sp.add_argument("verb", choices=["init", "show", "scan", "set"]); sp.add_argument("args", nargs="*")
+    sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("clues", help="clue ladder: init | status | next | place <id> | reveal <rung> | watch")
+    sp.add_argument("verb", choices=["init", "status", "next", "place", "reveal", "watch"]); sp.add_argument("arg", nargs="?")
+    sp.add_argument("--write", action="store_true"); sp.add_argument("--force", action="store_true")
+    sp.add_argument("--gm", action="store_true", help="print the secret text too (GM eyes only)")
+    sp = sub.add_parser("world", help="world clock: init | status | tick | seen <trace id>")
+    sp.add_argument("verb", choices=["init", "status", "tick", "seen"]); sp.add_argument("arg", nargs="?")
+    sp.add_argument("--rule", action="append", default=[], help="for a step Mori could have stopped: <step id>=stopped|happened")
+    sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
     sub.add_parser("help")
     a = p.parse_args(argv)
     if a.cmd in (None, "help"):
@@ -100,7 +119,90 @@ def main(argv=None):
             for sev, msg in finds:
                 print(f"  {sev} {msg}")
             line, c = verdict(finds); print("  " + line); code |= c
+        if a.cmd == "book":
+            if a.verb == "template":
+                print(json.dumps(B.TEMPLATE, indent=1, ensure_ascii=False))
+            elif a.verb == "fix":
+                code = B.fix(g, a.write)
+            elif a.verb == "apply":
+                with open(a.arg, encoding="utf-8") as f:
+                    code = B.apply(g, json.load(f), a.write)
+            else:
+                code = B.save_slot(g, a.verb, a.arg)
+        if a.cmd == "people":
+            data, plan = PE.load(g), Plan(g)
+            if a.verb == "init":
+                data, added = PE.init(g)
+                plan.note(f"{len(added)} people seeded from the bible: {', '.join(added) or '-'}")
+            elif a.verb == "show":
+                print("\n".join(PE.show(data, a.args[0] if a.args else None)) or "  nobody yet: run `people init`")
+            elif a.verb == "scan":
+                for key, name, delta, where in PE.scan(g, data):
+                    if PE.find(data, name):
+                        PE.apply_update(data, name, {"trust": f"{delta:+d}"}, g.stamp(), plan)
+                        data.setdefault("counted", []).append(key)
+                    else:
+                        plan.note(f"{name} is in the log but not in the bible's cast: adding them")
+                        PE.apply_update(data, name, {"trust": f"{delta:+d}"}, g.stamp(), plan)
+                        data.setdefault("counted", []).append(key)
+            elif a.verb == "set":
+                upd = dict(x.split("=", 1) for x in a.args[1:])
+                for k in ("learn",):
+                    if k in upd:
+                        upd[k] = upd[k].split(",")
+                PE.apply_update(data, a.args[0], upd, g.stamp(), plan)
+            if a.verb != "show":
+                plan.put_json("people.json", data)
+                code = plan.finish(a.write)
+        if a.cmd == "clues":
+            data, plan = CL.load(g), Plan(g)
+            if a.verb == "init":
+                data = CL.init(g)
+                plan.note(f"{len(data['ladder'])} rungs and {len(data['pool'])} unassigned clues read from the GM files; story is at rung {data['rung']}")
+            if a.verb in ("status", "init"):
+                rows, finds = CL.status(data, a.gm)
+                print("\n".join(rows))
+                for sev, msg in finds:
+                    print(f"  {sev} {msg}")
+            elif a.verb == "next":
+                print("\n".join("  " + r for r in CL.next_clues(data, a.gm)) or "  no unplaced clue for the next rung: the keeper must write some")
+            elif a.verb == "place":
+                CL.place(data, a.arg, g.stamp(), plan)
+            elif a.verb == "reveal":
+                CL.reveal(data, int(a.arg), plan, a.force)
+            elif a.verb == "watch":
+                plan.note(f"{len(CL.watch_list(data))} watch patterns are active for the scene check (read straight from clues.json)")
+            if a.verb in ("init", "place", "reveal"):
+                plan.put_json("clues.json", data)
+                code = plan.finish(a.write)
+            elif a.verb == "watch":
+                plan.finish(False)
+        if a.cmd == "world":
+            data, plan = W.load(g), Plan(g)
+            if a.verb == "init":
+                data, added = W.init(g)
+                plan.note(f"{len(added)} factions seeded from the bible: {', '.join(added) or '-'}")
+            elif a.verb == "status":
+                rows, finds = W.status(g, data, a.gm)
+                print("\n".join(rows))
+                for sev, msg in finds:
+                    print(f"  {sev} {msg}")
+            elif a.verb == "tick":
+                W.tick(g, data, plan, dict(r.split("=", 1) for r in a.rule))
+            elif a.verb == "seen":
+                W.surface(data, a.arg, g.stamp(), plan)
+            if a.verb != "status":
+                plan.put_json("factions.json", data)
+                code = plan.finish(a.write)
+        if a.cmd == "all":
+            print("PEOPLE / CLUES / WORLD")
+            extra = [("NOTE", f"log has {len(PE.scan(g, PE.load(g)))} trust change(s) not in people.json: run `people scan`")] if PE.scan(g, PE.load(g)) else []
+            extra += CL.status(CL.load(g))[1] if g.text("clues.json") else [("NOTE", "no clues.json: run `clues init`")]
+            extra += W.status(g, W.load(g))[1]
+            for sev, msg in extra:
+                print(f"  {sev} {msg}")
+            print("  " + verdict(extra)[0])
         return code
-    except (KeyError, FileNotFoundError) as e:
+    except (KeyError, FileNotFoundError, ValueError) as e:
         print(f"error: {e.args[0] if isinstance(e, KeyError) else e}", file=sys.stderr)
         return 2
