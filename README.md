@@ -17,6 +17,7 @@ A set of helper bots for novel-style text RPGs that run on a `gm.py` game folder
 11. **Quest log.** Tasks, rewards and prices; experience for more than kills.
 12. **Beat tracker.** Which planned story beats were delivered, changed or skipped.
 13. **Lookahead.** What is coming that he cannot survive or afford, and the honest ways back.
+14. **Lore keeper and world dresser.** Places, regulars, prices and customs that stay true and come back; weather; lore the story has not shown yet.
 
 Every combat number comes from the game folder's own `gm.py`, so the bots cannot disagree with the engine the game is played with.
 
@@ -64,6 +65,8 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 | `beats init / status / mark <id> <state> [note]` | Planned story beats (`--gm` shows the text) |
 | `ahead [days]` | Lookahead |
 | `growth` | Skill levels and new skills that are due from what Mori has done |
+| `ambient [place] [--gm]` | The scene's dressing: date, weather, place, regulars, a callback, unseen lore, the wider world |
+| `lore init / add / find / unseen / callbacks / places` | Record and look up what the story has established; list bible lore not yet shown |
 | `archive add <file> [--choice --title --chapter]` | Save a scene in full |
 | `archive book [--raw]` / `list` / `recap [n]` | Build `BOOK.md` and `BOOK.html`; list scenes; "previously on" |
 
@@ -146,13 +149,19 @@ The player never picks the flavour of kick. `techniques.json` holds a card for e
 
 `growth` counts every roll gm.py logged and turns it into skill progress: rolls in the art raise Renewal Taekwondo, successful reads raise Erase the Rhythm, hits taken raise Endurance, successful sense rolls can open a new skill. When a threshold is passed it prints the System message and the gm.py command, so growth is announced without the player asking. The thresholds are a proposal; put your own tracks in `growth.json`. `ahead` and `all` warn when growth is owed.
 
+### Lore keeper and world dresser
+
+`lore.json` records what the story has established about the world: places (seeded from the bible), their details, their regulars, what changed there, and loose entries such as prices, slang, customs, food, headlines and laws. `lore find` answers "has this been established?" from the recorded lore, the bible and the archived scenes. `lore unseen` lists every bolded term in the player's bible that no archived scene has mentioned yet. `lore callbacks` lists recorded details that have gone longest without returning.
+
+`ambient` puts it together for the scene about to be written: the weekday and time of day, the weather (fixed per date, so the sky is a fact of the world), the place card with its details and regulars, people recorded as being there, two callbacks, two pieces of unseen everyday lore, and how many off-screen events are waiting to surface. `before` includes it. Everything here is player-facing, so nothing is hidden.
+
 ### Lookahead
 
 `ahead` reads the next few days: Mori's condition, which foes he can beat right now compared with rested, the Daily Discipline and what the Penalty Zone would do to him as he is, deadlines against his money, quests due, faction steps coming, and the XP the arc plan needs per day. It ends with the honest ways back (the daily, the XP to a level-up, people who can treat him, items, open quests). It changes nothing.
 
 ## The bots
 
-`bots/` holds ten briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK` (which also keeps the beats), `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`, `FIGHT_REFEREE`, `QUEST_KEEPER`, `PLAYTESTER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
+`bots/` holds eleven briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK` (which also keeps the beats), `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`, `FIGHT_REFEREE`, `QUEST_KEEPER`, `PLAYTESTER`, `WORLD_DRESSER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
 
 First-time setup in the game chat:
 

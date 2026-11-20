@@ -7,6 +7,7 @@ from . import beats as BE
 from . import book as B
 from . import clues as CL
 from . import growth as GR
+from . import lore as LO
 from . import people as PE
 from . import quests as QU
 from . import rulings as RU
@@ -64,6 +65,12 @@ def setup(folder, write):
         plan.note(f"{len(data['beats'])} planned items ({n} new)")
         plan.put_json("beats.json", data)
 
+    def lore(g, plan):
+        data = LO.load(g)
+        n = LO.init(g, data)
+        plan.note(f"{len(data['places'])} places ({n} new)")
+        plan.put_json("lore.json", data)
+
     print("SETUP" + ("" if write else " (dry run: add --write)"))
     step("date and deadline flags", lambda g, plan: bool(B.fix(g, write)) and False)
     step("people", people)
@@ -72,6 +79,7 @@ def setup(folder, write):
     step("rulings and lessons", rules)
     step("technique cards", tech)
     step("planned beats", beats)
+    step("places and lore", lore)
     print("Next, in this order: bots/CLUE_KEEPER.md, bots/WORLD_CLOCK.md and bots/RULINGS_KEEPER.md once each; "
           "`archive import <story file> --write`; then `bot.py after`.")
     return max(steps or [0])
@@ -105,6 +113,9 @@ def after(g):
     a = [] if last and last.get("summary") and (last["day"], last.get("time")) >= (g.ledger["day"] - 1, "") else \
         ["the scene just played is not archived, or has no summary"] if last else ["the archive is empty"]
     (todo if a else ok).append(("ARCHIVE", a, "`archive add <scene file> --choice \"...\" --write`, then `archive summary <n> \"...\" --write`"))
+    ld = LO.load(g)
+    lo = ["no lore has been recorded from play yet"] if not ld["entries"] else []
+    (todo if lo else ok).append(("LORE", lo, "record what this scene established (a stall, a price, a habit, a headline): `lore add \"<term>\" kind=.. text=\"...\" [place=..] --write`"))
     finds, ways = AH.report(g, 3, sims=200)
     danger = [m for s, m in finds if s == "FAIL"]
     (todo if danger else ok).append(("AHEAD", danger + (["ways back: " + "; ".join(ways[:4])] if danger else []),
@@ -150,6 +161,8 @@ def before(g, foe=None):
     for s, m in AH.report(g, 2, sims=200)[0]:
         if s in ("FAIL", "WARN"):
             print(f"  {s}: {m}")
+    for line in LO.ambient(g, LO.load(g)):
+        print("  " + line)
     if foe:
         from . import scale as S
         m = S.matchup(g, foe)

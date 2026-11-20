@@ -18,7 +18,7 @@ from . import clues as CL
 from . import people as PE
 from .game import Plan
 
-EXTRA_SAVE = ["techniques.json", "fight.json", "quests.json", "beats.json", "rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
+EXTRA_SAVE = ["lore.json", "growth.json", "techniques.json", "fight.json", "quests.json", "beats.json", "rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
               "review_rules.json", "LAST_SCENES.md", "SKILL_TREES.md"]
 KEYS = {"day", "time", "where", "with", "now", "pending", "threads_add", "threads_done", "hp", "fatigue", "won", "gold",
         "items_add", "items_remove", "injuries_add", "injuries_heal", "memories_lost", "events_add", "events_done",

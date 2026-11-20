@@ -16,7 +16,7 @@ python3 novelbot/bot.py -g eth setup            # dry run: read it
 python3 novelbot/bot.py -g eth setup --write
 ```
 
-That builds every tracker from the game's own files: date fixes, the cast, the clue ladder, the factions, rulings and lessons from the log, technique cards (installed into gm.py), and the planned beats.
+That builds every tracker from the game's own files: date fixes, the cast, the clue ladder, the factions, rulings and lessons from the log, technique cards (installed into gm.py), the planned beats, and the places.
 
 ## 3. Bring the files level with the story
 
@@ -29,7 +29,8 @@ Run each of these briefs once ("Read novelbot/bots/<NAME>.md and do exactly that
 1. `CLUE_KEEPER`: assign clues to rungs, mark the ones already shown, write the watch patterns.
 2. `WORLD_CLOCK`: give every faction its next steps; mark the beats already played.
 3. `RULINGS_KEEPER`: review the harvested rulings; give every skill a number.
-4. `ARCHIVIST`: backfill. If the player has a "story so far" file, `python3 novelbot/bot.py -g eth archive import <file> --write` does it in one step.
+4. `WORLD_DRESSER`: record what the story has already established (the market, Nam's stall, the cart lady, the Gate tag, prices, the ward) with `lore add`.
+5. `ARCHIVIST`: backfill. If the player has a "story so far" file, `python3 novelbot/bot.py -g eth archive import <file> --write` does it in one step.
 
 Then `python3 novelbot/bot.py -g eth after` should show nothing left under TODO except what the next scene will settle.
 
@@ -39,7 +40,7 @@ Then `python3 novelbot/bot.py -g eth after` should show nothing left under TODO 
 ```
 python3 novelbot/bot.py -g eth before            # add --foe <id> if a fight is coming
 ```
-It gives the recap, injuries to show, open quests, clues ready, what the world did, beats in their window, and any danger ahead.
+It gives the recap, injuries to show, open quests, clues ready, what the world did, beats in their window, any danger ahead, and the scene's dressing: weekday, weather, the place and its regulars, a detail to bring back and a piece of lore the story has not shown yet. Every scene should carry one person with their own errand, one callback and one piece of lore shown through a thing or a habit, never explained.
 
 **Writing it**
 - Options offer what Mori could try, never which technique. He picks the move.
@@ -53,7 +54,7 @@ python3 novelbot/bot.py -g eth archive add <scene file> --choice "<what the play
 python3 novelbot/bot.py -g eth book apply <delta.json> --write
 python3 novelbot/bot.py -g eth after
 ```
-Do every TODO it lists. Growth and hidden-quest rewards are announced in the next scene without the player asking.
+Record what the scene established about the world (`lore add`). Do every TODO it lists. Growth and hidden-quest rewards are announced in the next scene without the player asking.
 
 **Now and then**
 - Big scenes and every fourth scene: SCENE_CHECKER (`bot.py -g eth all`).
@@ -77,6 +78,7 @@ Do every TODO it lists. Growth and hidden-quest rewards are announced in the nex
 | Archivist | Every scene in full; the story as a book; recaps | `ARCHIVIST` |
 | Fight referee | Mori picks his own best move; techniques grow with mastery and use | `FIGHT_REFEREE` |
 | Quest keeper | Quests, rewards, prices, XP for more than kills; growth check | `QUEST_KEEPER` |
+| World dresser | Places, regulars, weather, callbacks, lore not yet shown | `WORLD_DRESSER` |
 | Lookahead | Dangers ahead and the honest ways back | (in `before` and `after`) |
 | Playtester | Plays the next beat first to find dead ends | `PLAYTESTER` |
 

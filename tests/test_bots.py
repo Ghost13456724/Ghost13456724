@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 
-from novelbot import loop as LP, growth as GR, ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
+from novelbot import lore as LO, loop as LP, growth as GR, ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
 from novelbot.game import Game, Plan
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
@@ -673,12 +673,72 @@ class GrowthTests(Base):
         self.assertNotIn("skill growth is owed", " ".join(m for _, m in AH.report(self.game(), 1, sims=40)[0]))
 
 
+class LoreTests(Base):
+    def setUp(self):
+        super().setUp()
+        with open(os.path.join(self.dir, "BIBLE.md"), "a") as f:
+            f.write("\n## XVI. Places\n\n**Incheon.** Where it started.\n- The **Wolmi Gate Field** is fenced against the sea.\n"
+                    "\n## IX. Korea in 2047\n\n**Gate colors** tell you the danger. A **blue** Gate is the mildest.\n")
+
+    def build(self):
+        def go(g, plan):
+            data = LO.load(g)
+            LO.init(g, data)
+            LO.add(g, data, "Sinpo Market", {"kind": "place", "text": "covered market, fishcake carts"}, plan)
+            LO.add(g, data, "fishcake skewer", {"kind": "price", "text": "1,000 won at the Sinpo cart", "place": "Sinpo Market"}, plan)
+            LO.add(g, data, "the cart lady", {"kind": "person", "text": "gives one free", "place": "sinpo"}, plan)
+            LO.add(g, data, "ghost", {"kind": "price", "text": "x", "place": "Nowhere"}, plan)
+            plan.errors.clear()
+            plan.put_json("lore.json", data)
+        self.run_plan(go)
+        return self.get("lore.json")
+
+    def test_places_details_and_regulars(self):
+        data = self.build()
+        self.assertIn("Wolmi Gate Field", data["places"])
+        market = data["places"]["Sinpo Market"]
+        self.assertEqual((market["details"], market["regulars"]), (["1,000 won at the Sinpo cart"], ["the cart lady: gives one free"]))
+        self.assertEqual(len(data["entries"]), 2)                                 # the place itself and the bad one are not entries
+
+    def test_find_answers_has_this_been_established(self):
+        self.build()
+        g = self.game()
+        self.assertTrue(any("1,000 won" in r for r in LO.find(g, LO.load(g), "fishcake")))
+        self.assertTrue(any(r.startswith("bible:") for r in LO.find(g, LO.load(g), "Gate colors")))
+        self.assertEqual(LO.find(g, LO.load(g), "submarine"), [])
+
+    def test_unseen_lore_shrinks_as_the_story_shows_it(self):
+        g = self.game()
+        before = sum(len(v) for v in LO.unseen(g).values())
+        self.assertIn("gate colors", [t["term"].lower() for t in LO.unseen(g)["Korea in 2047"]])
+        plan = Plan(g)
+        data = AR.load(g)
+        AR.add(g, data, "The tag said BLUE. Gate colors tell you the danger, Gangu said.\n", plan)
+        plan.put_json(AR.INDEX, data)
+        plan.finish(True)
+        g = self.game()
+        self.assertLess(sum(len(v) for v in LO.unseen(g).values()), before)
+
+    def test_weather_is_a_fact_and_ambient_has_every_part(self):
+        self.build()
+        g = self.game()
+        self.assertEqual(LO.weather(g, 5), LO.weather(g, 5))
+        w = LO.weather(g, 1)
+        self.assertTrue(w["low"] < w["high"])
+        text = "\n".join(LO.ambient(g, LO.load(g), "Sinpo Market"))
+        for want in ("WHEN  D1 Friday 15 March 2047", "SKY", "PLACE Sinpo Market", "established here: 1,000 won",
+                     "regular: the cart lady", "BRING BACK", "UNSEEN LORE"):
+            self.assertIn(want, text)
+        self.assertIn("not in the lore yet", "\n".join(LO.ambient(g, LO.load(g), "Bupyeong Station")))
+        self.assertEqual(LO.daypart("04:05"), "the dead of night")
+
+
 class LoopTests(Base):
     def test_setup_builds_every_tracker_and_can_be_repeated(self):
         self.assertEqual(LP.setup(self.dir, False), 0)
         self.assertFalse(os.path.exists(os.path.join(self.dir, "people.json")))       # dry run wrote nothing
         self.assertEqual(LP.setup(self.dir, True), 0)
-        for name in ("people.json", "clues.json", "factions.json", "rulings.json", "techniques.json", "beats.json"):
+        for name in ("people.json", "clues.json", "factions.json", "rulings.json", "techniques.json", "beats.json", "lore.json"):
             self.assertTrue(os.path.exists(os.path.join(self.dir, name)), name)
         before = {n: self.get(n) for n in ("people.json", "clues.json", "techniques.json", "ledger.json", "beats.json")}
         self.assertEqual(LP.setup(self.dir, True), 0)

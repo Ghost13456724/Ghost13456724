@@ -9,6 +9,7 @@ from . import ahead as AH
 from . import beats as BE
 from . import book as B
 from . import clues as CL
+from . import lore as LO
 from . import loop as LP
 from . import growth as GR
 from . import people as PE
@@ -98,6 +99,11 @@ def main(argv=None):
     sp = sub.add_parser("beats", help="beat tracker: init | status | mark <id> delivered|changed|skipped [note]")
     sp.add_argument("verb", choices=["init", "status", "mark"]); sp.add_argument("args", nargs="*")
     sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
+    sp = sub.add_parser("lore", help="lore keeper: init | add <term> kind=.. text=.. [place=..] | find <words> | unseen | callbacks | places")
+    sp.add_argument("verb", choices=["init", "add", "find", "unseen", "callbacks", "places"]); sp.add_argument("args", nargs="*")
+    sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("ambient", help="world dresser: date, weather, place, regulars, a callback, unseen lore, the wider world")
+    sp.add_argument("place", nargs="?"); sp.add_argument("--gm", action="store_true")
     sp = sub.add_parser("setup", help="first-time setup of every tracker, in one go (safe to repeat)")
     sp.add_argument("--write", action="store_true")
     sp = sub.add_parser("before", help="what to have in hand before writing the next scene")
@@ -120,6 +126,30 @@ def main(argv=None):
             return LP.setup(a.game, a.write)
         g = Game(a.game)
         code = 0
+        if a.cmd == "ambient":
+            print("\n".join(LO.ambient(g, LO.load(g), a.place, a.gm)))
+            return 0
+        if a.cmd == "lore":
+            data, plan, v, r = LO.load(g), Plan(g), a.verb, a.args
+            if v == "init":
+                plan.note(f"{LO.init(g, data)} places read from the bible")
+            elif v == "add":
+                LO.add(g, data, r[0], dict(x.split("=", 1) for x in r[1:]), plan)
+            elif v == "find":
+                print("\n".join("  " + x for x in LO.find(g, data, " ".join(r))) or "  nothing established about that: you are free to invent it, then record it with `lore add`")
+            elif v == "unseen":
+                for section, items in LO.unseen(g).items():
+                    print(f"  {section}: " + ", ".join(t["term"] for t in items[:14]) + (f" (+{len(items) - 14})" if len(items) > 14 else ""))
+            elif v == "callbacks":
+                for e, n, last in LO.callbacks(g, data, 8):
+                    print(f"  {e['id']} [{e['kind']}] {e['term']}: {e['text'][:90]} | seen in {n} scene(s)" + (f", last scene {last}" if last else ""))
+            elif v == "places":
+                for k, pl in data["places"].items():
+                    print(f"  {k}: {len(pl['details'])} details, {len(pl['regulars'])} regulars, {len(pl['changes'])} changes")
+            if v in ("init", "add"):
+                plan.put_json("lore.json", data)
+                return plan.finish(a.write)
+            return 0
         if a.cmd == "before":
             return LP.before(g, a.foe)
         if a.cmd == "after":
