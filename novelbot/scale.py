@@ -87,7 +87,7 @@ def best_attack(game, L, foe_id):
     return best
 
 
-def simulate(game, L0, foe_id, fights=600, max_rounds=40, seed=7):
+def simulate(game, L0, foe_id, fights=600, max_rounds=40, seed=7, defences=1):
     """Play the fight forward: each round Mori strikes once and defends once.
 
     HP, fatigue and the penalties gm.py hangs on them change as the fight goes,
@@ -117,13 +117,14 @@ def simulate(game, L0, foe_id, fights=600, max_rounds=40, seed=7):
                 L["fatigue"] = min(100, L["fatigue"] + FATIGUE.get(R["band"], 2))
                 if foe_hp <= 0:
                     break
-            R = odds(L, "dodge")
-            t = outcome(gm, R, rng.randint(1, 20))
-            if t in ("PARTIAL", "FAIL", "FAIL+") and "dmg" in R:
-                lo, hi = R["dmg"]
-                hurt = rng.randint(lo, hi) if hi > lo else lo
-                L["hp"] -= round(hurt * (0.5 if t == "PARTIAL" else 1.5 if t == "FAIL+" else 1))
-            L["fatigue"] = min(100, L["fatigue"] + FATIGUE.get(R["band"], 2))
+            for _ in range(defences):
+                R = odds(L, "dodge")
+                t = outcome(gm, R, rng.randint(1, 20))
+                if t in ("PARTIAL", "FAIL", "FAIL+") and "dmg" in R:
+                    lo, hi = R["dmg"]
+                    hurt = rng.randint(lo, hi) if hi > lo else lo
+                    L["hp"] -= round(hurt * (0.5 if t == "PARTIAL" else 1.5 if t == "FAIL+" else 1))
+                L["fatigue"] = min(100, L["fatigue"] + FATIGUE.get(R["band"], 2))
         if foe_hp <= 0 and L["hp"] > 0:
             wins += 1
             rounds += r
@@ -137,7 +138,7 @@ def classify(win, hp_left=100):
     return "favoured" if name == "fodder" and (hp_left or 0) < 85 else name   # fodder does not cost a quarter of his health
 
 
-def matchup(game, foe_id, level=None, sims=600):
+def matchup(game, foe_id, level=None, sims=600, defences=1):
     foe_id = game.foe(foe_id)
     f = game.foes[foe_id]
     now, fresh = game.sheet(level), game.sheet(level, fresh=True)
@@ -157,8 +158,9 @@ def matchup(game, foe_id, level=None, sims=600):
         lo, hi = R["dmg"]
         out["hits_to_down"] = (max(1, -(-fresh["hp_max"] // max(1, hi))), max(1, -(-fresh["hp_max"] // max(1, lo))) if lo else None)
         out["taken"] = (lo, hi, R["tr"])
-    out["fresh"] = simulate(game, fresh, foe_id, sims)
-    out["now"] = simulate(game, now, foe_id, sims) if not level and now["hp"] > 0 else None
+    out["fresh"] = simulate(game, fresh, foe_id, sims, defences=defences)
+    out["now"] = simulate(game, now, foe_id, sims, defences=defences) if not level and now["hp"] > 0 else None
+    out["defences"] = defences
     out["class"] = classify(out["fresh"]["win"], out["fresh"]["hp_left"])
     out["cant_hurt"] = best_attack(game, fresh, foe_id) is None or best_attack(game, fresh, foe_id)[0] == 0
     return out

@@ -4,9 +4,11 @@ import json
 import os
 import sys
 
+from . import archive as AR
 from . import book as B
 from . import clues as CL
 from . import people as PE
+from . import rulings as RU
 from . import scale as S
 from . import world as W
 from .game import Plan
@@ -33,6 +35,8 @@ def show_matchup(m):
         a, b = m["hits_to_down"]
         print(f"  its hit on Mori: {lo}-{hi} HP (TR {tr:.2f}); from full, down in {a}" + (f"-{b}" if b and b != a else "") + " clean hits")
     fr = m["fresh"]
+    if m.get("defences", 1) > 1:
+        print(f"  (played with {m['defences']} defensive rolls per attack)")
     print(f"  whole fight, rested Lv{m['level']}: Mori wins {fr['win']}%"
           + (f" in ~{fr['rounds']} rounds, ending on ~{fr['hp_left']}% HP" if fr["rounds"] else ""))
     if m["now"]:
@@ -46,6 +50,7 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd")
     sp = sub.add_parser("fight", help="forecast a whole fight against a foe card")
     sp.add_argument("foe"); sp.add_argument("--level", type=int, help="project Mori to this level (+1 every stat per level)")
+    sp.add_argument("--defences", type=int, default=1, help="defensive rolls Mori makes per attack of his own (default 1)")
     sub.add_parser("foes", help="audit every foe card and rank them by danger")
     sp = sub.add_parser("design", help="build a foe card for the fight you want")
     sp.add_argument("role", help="grunt | even | elite | boss")
@@ -66,6 +71,15 @@ def main(argv=None):
     sp.add_argument("verb", choices=["init", "status", "next", "place", "reveal", "watch"]); sp.add_argument("arg", nargs="?")
     sp.add_argument("--write", action="store_true"); sp.add_argument("--force", action="store_true")
     sp.add_argument("--gm", action="store_true", help="print the secret text too (GM eyes only)")
+    sp = sub.add_parser("rules", help="rulings and lessons: list | scan | import <file> | add <id> k=v.. | set <id> k=v.. | rm <id> | "
+                                      "bump <id> <foe> | reset <id> <foe> | use <id> | mods <foe> | dice | audit")
+    sp.add_argument("verb", choices=["list", "scan", "import", "add", "set", "rm", "bump", "reset", "use", "mods", "dice", "audit"])
+    sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("archive", help="archivist: add <scene file> | list | book | recap [n] | choice <n> <text> | summary <n> <text> | chapter <n> <name>")
+    sp.add_argument("verb", choices=["add", "list", "book", "recap", "choice", "summary", "chapter", "title"])
+    sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
+    sp.add_argument("--title"); sp.add_argument("--chapter"); sp.add_argument("--choice"); sp.add_argument("--day", type=int); sp.add_argument("--time")
+    sp.add_argument("--raw", action="store_true", help="book: keep dice lines and option menus")
     sp = sub.add_parser("world", help="world clock: init | status | tick | seen <trace id>")
     sp.add_argument("verb", choices=["init", "status", "tick", "seen"]); sp.add_argument("arg", nargs="?")
     sp.add_argument("--rule", action="append", default=[], help="for a step Mori could have stopped: <step id>=stopped|happened")
@@ -79,7 +93,7 @@ def main(argv=None):
         g = Game(a.game)
         code = 0
         if a.cmd == "fight":
-            show_matchup(S.matchup(g, a.foe, a.level))
+            show_matchup(S.matchup(g, a.foe, a.level, defences=a.defences))
         if a.cmd == "design":
             card, m = S.design(g, a.role, a.level, a.name, a.type, a.rank)
             show_matchup(m)
@@ -194,11 +208,104 @@ def main(argv=None):
             if a.verb != "status":
                 plan.put_json("factions.json", data)
                 code = plan.finish(a.write)
+        if a.cmd == "rules":
+            data, plan, v, r = RU.load(g), Plan(g), a.verb, a.args
+            kv = dict(x.split("=", 1) for x in r[1:] if "=" in x)
+            for k in ("step", "max", "uses"):
+                if k in kv:
+                    kv[k] = int(kv[k])
+            if "reviewed" in kv:
+                kv["reviewed"] = kv["reviewed"].lower() in ("1", "true", "yes")
+            if v == "list":
+                for x in data["rulings"]:
+                    tag = "" if x.get("reviewed", True) else " (unreviewed)"
+                    print(f"  {x['id']:<24} {x['kind']:<8} {x['source']:<12}{tag} {x['text'][:110]}")
+                print(f"  {len(data['rulings'])} rulings") if data["rulings"] else print("  none yet: run `rules scan --write`")
+            elif v == "scan":
+                RU.scan(g, data, plan)
+            elif v == "import":
+                with open(r[0], encoding="utf-8") as f:
+                    RU.import_lessons(data, f.read(), os.path.basename(os.path.dirname(os.path.abspath(r[0]))) + "/" + os.path.basename(r[0]), plan)
+            elif v == "add":
+                if any(x["id"] == r[0] for x in data["rulings"]):
+                    plan.error(f"ruling '{r[0]}' already exists; use `rules set`")
+                elif kv.get("kind") not in ("bonus", "limited", "lesson", "rule") or not kv.get("text"):
+                    plan.error("a ruling needs kind=bonus|limited|lesson|rule and text=...")
+                else:
+                    data["rulings"].append(dict({"id": r[0], "source": g.stamp(), "reviewed": True}, **kv))
+                    plan.note(f"ruling {r[0]} added")
+            elif v == "set":
+                RU.get(data, r[0]).update(dict({"reviewed": True}, **kv))
+                plan.note(f"ruling {r[0]} updated")
+            elif v == "rm":
+                RU.get(data, r[0])
+                data["rulings"] = [x for x in data["rulings"] if x["id"] != r[0]]
+                plan.note(f"ruling {r[0]} removed")
+            elif v in ("bump", "reset"):
+                RU.bump(g, data, r[0], g.foe(r[1]), plan, reset=(v == "reset"))
+            elif v == "use":
+                RU.use(g, data, r[0], plan)
+            elif v == "mods":
+                total, lines = RU.mods(g, data, g.foe(r[0]))
+                for line in lines:
+                    print("  " + line)
+                print(f"  add to the next roll against {g.foe(r[0])}: mod={total:+d}")
+            elif v == "dice":
+                d = RU.dice(g)
+                if d:
+                    print(f"  {d['n']} rolls logged; average die {d['mean']} (a fair d20 averages 10.5); natural 1s: {d['ones']}, natural 20s: {d['twenties']}")
+                    print(f"  succeeded {d['won']}; the odds offered predicted {d['expected']}")
+                    print(f"  average chance offered: {d['avg_chance']}%; {d['under_half']} of {d['n']} rolls were under 50%")
+                    print(f"  in fights: {d['attack']} attacks, {d['defence']} defensive rolls")
+                else:
+                    print("  no rolls in the log yet")
+            if v == "audit":
+                finds = RU.audit(g, data)
+                for sev, msg in finds:
+                    print(f"  {sev} {msg}")
+                line, code = verdict(finds); print("  " + line)
+            elif v not in ("list", "mods", "dice"):
+                plan.put_json("rulings.json", data)
+                code = plan.finish(a.write)
+        if a.cmd == "archive":
+            data, plan, v, r = AR.load(g), Plan(g), a.verb, a.args
+            if v == "add":
+                path = r[0] if os.path.exists(r[0]) else g.path(r[0])
+                with open(path, encoding="utf-8") as f:
+                    AR.add(g, data, f.read(), plan, a.title, a.chapter, a.choice, a.day, a.time)
+            elif v in ("choice", "summary", "chapter", "title"):
+                sc = next((x for x in data["scenes"] if x["n"] == int(r[0])), None)
+                if sc is None:
+                    plan.error(f"no scene {r[0]}")
+                else:
+                    sc[v] = " ".join(r[1:])
+                    plan.note(f"scene {r[0]}: {v} set")
+            elif v == "list":
+                print("\n".join(AR.listing(data)) or "  the archive is empty: `archive add <scene file> --write`")
+            elif v == "recap":
+                print("\n".join("  " + x for x in AR.recap(data, int(r[0]) if r else 5)) or "  the archive is empty")
+            elif v == "book":
+                md, words = AR.build(g, data, novel=not a.raw)
+                plan.put_text("archive/BOOK.md", md)
+                plan.put_text("archive/BOOK.html", AR.to_html(data["title"], md))
+                plan.note(f"book: {len(AR.chapters(data))} chapters, {len(AR.live(data))} scenes, {words:,} words")
+            if v not in ("list", "recap"):
+                if v != "book":
+                    plan.put_json(AR.INDEX, data)
+                code = plan.finish(a.write)
         if a.cmd == "all":
+            print("RULINGS")
+            rfinds = RU.audit(g, RU.load(g))
+            for sev, msg in rfinds:
+                print(f"  {sev} {msg}")
+            line, c = verdict(rfinds); print("  " + line); code |= c
             print("PEOPLE / CLUES / WORLD")
             extra = [("NOTE", f"log has {len(PE.scan(g, PE.load(g)))} trust change(s) not in people.json: run `people scan`")] if PE.scan(g, PE.load(g)) else []
             extra += CL.status(CL.load(g))[1] if g.text("clues.json") else [("NOTE", "no clues.json: run `clues init`")]
             extra += W.status(g, W.load(g))[1]
+            arch = AR.load(g)
+            if not arch["scenes"]:
+                extra.append(("NOTE", "the archive is empty: scenes are not being saved in full (`archive add`)"))
             for sev, msg in extra:
                 print(f"  {sev} {msg}")
             print("  " + verdict(extra)[0])

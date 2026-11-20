@@ -18,7 +18,7 @@ from . import clues as CL
 from . import people as PE
 from .game import Plan
 
-EXTRA_SAVE = ["people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
+EXTRA_SAVE = ["rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
               "review_rules.json", "LAST_SCENES.md", "SKILL_TREES.md"]
 KEYS = {"day", "time", "where", "with", "now", "pending", "threads_add", "threads_done", "hp", "fatigue", "won", "gold",
         "items_add", "items_remove", "injuries_add", "injuries_heal", "memories_lost", "events_add", "events_done",
@@ -227,6 +227,22 @@ def save_slot(game, verb, name):
         elif verb == "load" and os.path.exists(os.path.join(dst, n)) and n.endswith(".json") and n != "review_rules.json":
             os.remove(os.path.join(dst, n))        # the slot predates this file; a newer copy would be from another timeline
             moved.append(f"removed {n}")
+    idx = game.path("archive/index.json")              # the archive is never rolled back; later scenes are set aside
+    if os.path.exists(idx):
+        import json
+        import time
+        if verb == "save":
+            shutil.copy2(idx, os.path.join(slot, "archive_index.json"))
+        else:
+            from . import archive as AR
+            data = json.load(open(idx, encoding="utf-8"))
+            kept = os.path.join(slot, "archive_index.json")
+            shas = {s["sha"] for s in json.load(open(kept, encoding="utf-8"))["scenes"]} if os.path.exists(kept) else set()
+            n = AR.mark_branch(data, shas, time.strftime("%Y-%m-%d %H:%M"))
+            with open(idx, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=1, ensure_ascii=False)
+            if n:
+                print(f"  archive: {n} scene(s) played after this save were set aside (kept on disk, left out of the book)")
     print(f"  also {'saved' if verb == 'save' else 'restored'}: {', '.join(moved) or 'nothing extra'}")
     return 0
 

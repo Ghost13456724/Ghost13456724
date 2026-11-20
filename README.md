@@ -9,6 +9,8 @@ A set of helper bots for novel-style text RPGs that run on a `gm.py` game folder
 5. **World clock.** Runs each faction's off-screen agenda on a schedule, with dice.
 6. **People tracker.** Where everyone is, how they feel about Mori, who knows what and who was told what.
 7. **Clue ladder keeper.** Clues before truths, one rung at a time.
+8. **Rulings and lessons keeper.** Mid-play rulings and the player's corrections, turned into counters and checks.
+9. **Archivist.** Every scene saved in full, and the story exported as a book.
 
 Every combat number comes from the game folder's own `gm.py`, so the bots cannot disagree with the engine the game is played with.
 
@@ -31,7 +33,7 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 
 | Command | What it does |
 | --- | --- |
-| `fight <foe> [--level N]` | Odds for each action, what a clean kick does, what the foe's hit costs, then the whole fight replayed 600 times: win rate rested and as Mori is right now |
+| `fight <foe> [--level N] [--defences N]` | Odds for each action, what a clean kick does, what the foe's hit costs, then the whole fight replayed 600 times: win rate rested and as Mori is right now |
 | `foes` | Audits every foe card and lists them from easiest to deadliest |
 | `design <role> [--level N] [--name] [--type] [--rank]` | Builds a foe card for the fight you want and prints the `gm.py foe add` line |
 | `rank` | Where Mori and each foe sit on the rank ladder |
@@ -45,6 +47,11 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 | `people init / show [name] / scan / set <name> k=v` | Seed the cast from the bible, show it, count trust changes from the log, edit one person |
 | `clues init / status / next / place <id> / reveal <rung>` | The reveal ladder (add `--gm` to see the text) |
 | `world init / status / tick / seen <trace id>` | Faction agendas (add `--gm` to see the text) |
+| `rules scan / list / import <file> / add / set / rm` | Harvest rulings and corrections from the log; review and edit them |
+| `rules mods <foe>` / `bump <id> <foe>` / `reset <id> <foe>` / `use <id>` | The modifier to pass to the next roll; grow or clear a bonus; spend a once-a-day item |
+| `rules dice` / `rules audit` | Luck and difficulty report; skills with no number, rolls not applied, unreviewed rulings |
+| `archive add <file> [--choice --title --chapter]` | Save a scene in full |
+| `archive book [--raw]` / `list` / `recap [n]` | Build `BOOK.md` and `BOOK.html`; list scenes; "previously on" |
 
 ### Power scaling
 
@@ -95,9 +102,19 @@ Once a delta has been applied, `STATE_NOW.md` is rebuilt from the files on every
 
 `clues.json` holds each rung's truth, its clues, and watch patterns. A rung can be revealed only in order and only after two of its clues have been placed in play; `--force` overrides that and says so in the log. The scene check reads the watch patterns directly and reports any match above the current rung as a leak.
 
+### Rulings and lessons keeper
+
+`rulings.json` holds four kinds of entry. A **bonus** grows per foe up to a cap (adaptation: +1 per lost exchange, max +3) and `rules mods <foe>` prints the `mod=` to pass to `gm.py roll`. A **limited** item can be used N times a day and is refused after that. A **lesson** is a correction; give it a `pattern` and the scene check enforces it. A **rule** is a mechanics ruling kept where it can be found. `rules scan` harvests all of these from log lines such as "Rules added", "Correction (user)" and "Retcon", and from once-per-day items in the ledger.
+
+`rules audit` also reports skills and techniques that are on the sheet but change no number, rolls that were not run with `--apply` (so fatigue and mastery never move), and how the fights were actually structured. `rules dice` reports luck and how hard the offered rolls were. If the log shows more than one defensive roll per attack, `fight <foe> --defences 2` forecasts the fight the way it is really being played.
+
+### Archivist
+
+`archive add` stores a scene exactly as the player read it under `archive/scenes/`, with its day, date, chapter, the choice that followed and a one-line summary. `archive book` builds `archive/BOOK.md` and a phone-friendly `archive/BOOK.html`: dice lines and option menus are removed, System messages are kept, and each choice appears as one line (`--raw` keeps everything). Only text the player has seen goes in. Loading an older save sets later scenes aside without deleting them.
+
 ## The bots
 
-`bots/` holds five briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK`, `CLUE_KEEPER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
+`bots/` holds seven briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK`, `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
 
 First-time setup in the game chat:
 
@@ -107,19 +124,23 @@ python3 novelbot/bot.py -g eth people init --write    # cast from the bible
 python3 novelbot/bot.py -g eth people scan --write    # trust changes already in the log
 python3 novelbot/bot.py -g eth clues init --write     # ladder and clue lists from the GM files
 python3 novelbot/bot.py -g eth world init --write     # public factions from the bible
+python3 novelbot/bot.py -g eth rules scan --write     # rulings and corrections already in the log
 ```
 
-Then run the CLUE_KEEPER and WORLD_CLOCK briefs once each to fill in clues, watch patterns and agendas, and the BOOKKEEPER brief on the current scene so the injuries reach the ledger.
+Then run the CLUE_KEEPER, WORLD_CLOCK and RULINGS_KEEPER briefs once each to fill in clues, watch patterns, agendas and rulings, the ARCHIVIST's backfill to save the scenes already played, and the BOOKKEEPER brief on the current scene so the injuries reach the ledger.
 
 Suggested lines for `WORKFLOW.md`:
 
 ```
-- After EVERY scene: BOOKKEEPER (delta -> `bot.py -g eth book apply <delta> --write`), then `bot.py -g eth sync` must be CLEAN.
+- EVERY roll: `gm.py roll ... --apply`, with the `mod=` from `bot.py -g eth rules mods <foe>`.
+- After EVERY scene: ARCHIVIST (`archive add <scene> --choice "..." --write`), then BOOKKEEPER (delta -> `bot.py -g eth book apply <delta> --write`), then `bot.py -g eth sync` must be CLEAN.
 - When the day changes or time is skipped: WORLD_CLOCK (`world tick`), then surface one trace.
 - Before a scene: CLUE_KEEPER `clues next --gm`; after a reveal: `clues reveal <rung> --write`.
 - New enemy: `bot.py -g eth design <role> --level N` -> foe card. Never a guessed card.
 - Before any real fight: `bot.py -g eth fight <foe>`.
 - Big scenes and every ~4 scenes: SCENE_CHECKER (`bot.py -g eth all`).
+- A correction or a new ruling: log it, then RULINGS_KEEPER (`rules scan --write`).
+- Session start or after a context reset: `bot.py -g eth archive recap 5`, then STATE_NOW.
 - Saves: `bot.py -g eth book save <name>` / `book load <name>`, not bare gm.py save.
 ```
 

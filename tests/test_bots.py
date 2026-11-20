@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 
-from novelbot import book as B, clues as CL, people as PE, scene as SC, sync as SY, world as W
+from novelbot import archive as AR, book as B, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
 from novelbot.game import Game, Plan
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
@@ -256,6 +256,144 @@ class WorldTests(Base):
         self.assertIn("Harbour Union had a step due D1 that never ran", text)
         self.assertNotIn("files a report", "\n".join(rows))
         self.assertIn("files a report", "\n".join(W.status(g, W.load(g), gm=True)[0]))
+
+
+class RulingTests(Base):
+    def setUp(self):
+        super().setUp()
+        with open(os.path.join(self.dir, "LOG.md"), "a") as f:
+            f.write("- D1 09:05: Rules added: adaptation (+1 per lost exchange vs same foe, max +3, needs a spotted tell).\n"
+                    "- D1 09:06: Correction (user): the teacher never says 'lie with your shoulders'.\n")
+        L = self.get("ledger.json")
+        L["items"].append("Horn-ring (brass. Once per day: reroll a natural 1)")
+        L["skills"]["Renewal Taekwondo"] = "4 (Three-Stage Hoechook, Lowest Hoechook unlocked; Ground Drawer used early)"
+        self.put("ledger.json", L)
+
+    def scan(self):
+        def go(g, plan):
+            data = RU.load(g)
+            RU.scan(g, data, plan)
+            plan.put_json("rulings.json", data)
+        self.run_plan(go)
+        return self.get("rulings.json")
+
+    def test_scan_structures_what_it_can(self):
+        data = self.scan()
+        kinds = {r["id"]: r["kind"] for r in data["rulings"]}
+        self.assertEqual(kinds["adaptation"], "bonus")
+        self.assertEqual(kinds["horn_ring"], "limited")
+        self.assertEqual(sorted(kinds.values()).count("lesson"), 1)
+        self.assertEqual(next(r for r in data["rulings"] if r["id"] == "adaptation")["max"], 3)
+        self.assertEqual(len(self.scan()["rulings"]), len(data["rulings"]))      # a second scan adds nothing
+
+    def test_bonus_grows_per_foe_and_caps(self):
+        self.scan()
+        g = self.game()
+        data, plan = RU.load(g), Plan(g)
+        for _ in range(5):
+            RU.bump(g, data, "adaptation", "dokkaebi", plan)
+        self.assertEqual(RU.mods(g, data, "dokkaebi")[0], 3)
+        self.assertEqual(RU.mods(g, data, "union_thug")[0], 0)
+        RU.bump(g, data, "adaptation", "dokkaebi", plan, reset=True)
+        self.assertEqual(RU.mods(g, data, "dokkaebi")[0], 0)
+
+    def test_limited_use_refuses_a_second_time_until_the_next_day(self):
+        self.scan()
+        g = self.game()
+        data, plan = RU.load(g), Plan(g)
+        RU.use(g, data, "horn_ring", plan)
+        RU.use(g, data, "horn_ring", plan)
+        self.assertEqual(len(plan.errors), 1)
+        g.ledger["day"] += 1
+        plan2 = Plan(g)
+        RU.use(g, data, "horn_ring", plan2)
+        self.assertEqual(plan2.errors, [])
+
+    def test_lesson_with_pattern_is_enforced_in_scenes(self):
+        data = self.scan()
+        lesson = next(r for r in data["rulings"] if r["kind"] == "lesson")
+        lesson["pattern"] = "lie with your shoulders"
+        self.put("rulings.json", data)
+        text = " | ".join(m for _, m in SC.check(self.game(), "\"Lie with your shoulders,\" Grandpa says.\n"))
+        self.assertIn("breaks ruling", text)
+
+    def test_audit_finds_inert_skills_and_unapplied_rolls(self):
+        with open(os.path.join(self.dir, "LOG.md"), "a") as f:
+            for i in range(12):
+                f.write(f"- D1 09:1{i % 10}: roll {'dodge' if i % 4 else 'hit'} dokkaebi d{i + 3} need 12 (45%) dc11\n")
+        g = self.game()
+        text = " | ".join(m for _, m in RU.audit(g, RU.load(g)))
+        self.assertIn("2 ruling(s) or correction(s) in the log are not in rulings.json", text)
+        self.assertIn("'Three-Stage Hoechook' is on the sheet", text)
+        self.assertIn("'Lowest Hoechook' is on the sheet", text)
+        self.assertNotIn("Ground Drawer", text)
+        self.assertNotIn("'Renewal Taekwondo'", text)                 # it has training effects
+        self.assertIn("not being run with `--apply`", text)
+        self.assertIn("defensive rolls", text)
+        d = RU.dice(g)
+        self.assertEqual((d["n"], d["attack"]), (14, 4))
+
+    def test_import_lessons(self):
+        g = self.game()
+        data, plan = RU.load(g), Plan(g)
+        RU.import_lessons(data, "# L\n1. Never choose for the player.\n2. Stats are heavy.\n", "old/LESSONS.md", plan)
+        RU.import_lessons(data, "1. Never choose for the player.\n", "old/LESSONS.md", plan)
+        self.assertEqual([r["reviewed"] for r in data["rulings"]], [False, False])
+
+    def test_extra_defences_make_fights_harder(self):
+        g = self.game()
+        one = S.matchup(g, "dokkaebi_ringleader", sims=400)["fresh"]["win"]
+        two = S.matchup(g, "dokkaebi_ringleader", sims=400, defences=2)["fresh"]["win"]
+        self.assertLess(two, one)
+
+
+class ArchiveTests(Base):
+    S1 = "The ward is dark.\n\n[You have returned.]\n\n🎲 **Read:** d20 **15** = **17** vs DC 11 → **STRONG**\n\n1. Hide\n2. Sleep\n3. Something else\n"
+    S2 = "Morning comes grey.\n\n1. Wake her\n2. Let her sleep\n"
+
+    def add(self, text, **kw):
+        def go(g, plan):
+            data = AR.load(g)
+            AR.add(g, data, text, plan, **kw)
+            plan.put_json(AR.INDEX, data)
+        return self.run_plan(go)
+
+    def test_scenes_are_kept_verbatim_in_order(self):
+        self.add(self.S1, title="The Ward", chapter="Chapter 1")
+        self.add(self.S2, choice="Hide")
+        self.add(self.S1)                                              # duplicate: ignored
+        data = self.get("archive/index.json")
+        self.assertEqual([(s["n"], s["chapter"], s["choice"]) for s in data["scenes"]], [(1, "Chapter 1", "Hide"), (2, "Chapter 1", None)])
+        self.assertEqual(self.get("archive/scenes/0001_D1.md"), self.S1)
+        self.assertEqual(data["scenes"][0]["date"], "2047-03-15")
+
+    def test_book_reads_like_a_novel(self):
+        self.add(self.S1, title="The Ward", chapter="Chapter 1")
+        self.add(self.S2, choice="Hide", day=2)
+        g = self.game()
+        md, words = AR.build(g, AR.load(g))
+        self.assertIn("## Chapter 1", md)
+        self.assertIn("## Day 2", md)                                  # a new day opens a new chapter unless named
+        self.assertIn("[You have returned.]", md)
+        self.assertIn("> **You chose:** Hide", md)
+        self.assertNotIn("🎲", md)
+        self.assertNotIn("1. Hide", md)
+        self.assertIn("🎲", AR.build(g, AR.load(g), novel=False)[0])
+        page = AR.to_html("T", md)
+        self.assertIn('<p class="sys">[You have returned.]</p>', page)
+        self.assertIn('<p class="choice"><b>You chose:</b> Hide</p>', page)
+
+    def test_loading_a_save_sets_later_scenes_aside(self):
+        os.makedirs(os.path.join(self.tmp, "saves"))
+        self.add(self.S1)
+        B.save_slot(self.game(), "save", "t")
+        self.add(self.S2)
+        B.save_slot(self.game(), "load", "t")
+        g = self.game()
+        data = AR.load(g)
+        self.assertEqual(len(AR.live(data)), 1)
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "archive/scenes/0002_D1.md")))
+        self.assertNotIn("Morning", AR.build(g, data)[0])
 
 
 if __name__ == "__main__":

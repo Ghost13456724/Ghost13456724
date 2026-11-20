@@ -134,6 +134,8 @@ class Plan:
         bak = self.game.path(os.path.join(".novelbot_bak", time.strftime("%Y%m%d-%H%M%S")))
         os.makedirs(bak, exist_ok=True)
         for n in changed:
+            os.makedirs(os.path.dirname(os.path.join(bak, n)), exist_ok=True)
+            os.makedirs(os.path.dirname(self.game.path(n)), exist_ok=True)
             if os.path.exists(self.game.path(n)) and not os.path.exists(os.path.join(bak, n)):
                 shutil.copy2(self.game.path(n), os.path.join(bak, n))
             tmp = self.game.path(n) + ".tmp"
