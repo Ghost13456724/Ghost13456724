@@ -9,6 +9,7 @@ from . import ahead as AH
 from . import beats as BE
 from . import book as B
 from . import clues as CL
+from . import growth as GR
 from . import people as PE
 from . import rulings as RU
 from . import quests as QU
@@ -96,6 +97,7 @@ def main(argv=None):
     sp = sub.add_parser("beats", help="beat tracker: init | status | mark <id> delivered|changed|skipped [note]")
     sp.add_argument("verb", choices=["init", "status", "mark"]); sp.add_argument("args", nargs="*")
     sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
+    sub.add_parser("growth", help="skill growth that is due from what Mori has done, with the System message and gm.py command")
     sp = sub.add_parser("ahead", help="lookahead: what is coming, what he cannot survive or afford, and the honest ways back")
     sp.add_argument("days", nargs="?", type=int, default=3)
     sp = sub.add_parser("world", help="world clock: init | status | tick | seen <trace id>")
@@ -457,6 +459,20 @@ def main(argv=None):
             else:
                 plan.put_json("beats.json", data)
                 code = plan.finish(a.write)
+        if a.cmd in ("growth", "all"):
+            print("GROWTH")
+            due, progress = GR.check(g)
+            for d in due:
+                print(f"  DUE {d['skill']}: {d['from'] or 'not owned'} -> {d['to']} ({d['count']} counted). Announce it now, unasked:")
+                for line in d["message"]:
+                    print("      " + line)
+                print("      then: " + d["cmd"] + (" ; bot.py tech install --write" if "Taekwondo" in d["skill"] else ""))
+                if d["note"]:
+                    print("      note: " + d["note"])
+            for line in progress:
+                print("  " + line)
+            if not due:
+                print("  nothing due")
         if a.cmd in ("ahead", "all"):
             print("AHEAD" + (f" (next {a.days} days)" if a.cmd == "ahead" else ""))
             finds, ways = AH.report(g, getattr(a, "days", 3))

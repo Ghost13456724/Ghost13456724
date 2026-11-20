@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 
-from novelbot import ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
+from novelbot import growth as GR, ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
 from novelbot.game import Game, Plan
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
@@ -642,6 +642,35 @@ class BeatTests(Base):
     def test_pace(self):
         p = BE.pace(self.game(), self.get("beats.json"))
         self.assertEqual((p["day"], p["level"], p["xp"]), (30, 12, 6600))
+
+
+class GrowthTests(Base):
+    def log(self, action, d, need, n):
+        with open(os.path.join(self.dir, "LOG.md"), "a") as f:
+            for _ in range(n):
+                f.write(f"- D1 09:00: roll {action} dokkaebi d{d} need {need} (50%) dc11\n")
+
+    def test_growth_is_found_without_anyone_asking(self):
+        self.assertEqual(GR.check(self.game())[0], [])
+        self.log("read", 15, 10, 1)            # one successful read: a new skill
+        self.log("dodge", 3, 10, 8)            # eight hits taken: endurance
+        self.log("hit", 12, 10, 60)            # sixty more rolls in the art
+        due = {d["skill"]: d for d in GR.check(self.game())[0]}
+        self.assertEqual((due["Erase the Rhythm"]["from"], due["Erase the Rhythm"]["to"]), (0, 1))
+        self.assertEqual(due["Endurance"]["to"], 1)
+        self.assertEqual((due["Renewal Taekwondo"]["from"], due["Renewal Taekwondo"]["to"]), (4, 5))
+        self.assertIn('gm.py skill "Renewal Taekwondo" "5"', due["Renewal Taekwondo"]["cmd"])
+        self.assertIn("[Erase the Rhythm: acquired, Lv.1]", due["Erase the Rhythm"]["message"])
+
+    def test_nothing_is_owed_once_the_sheet_is_updated(self):
+        self.log("read", 15, 10, 1)
+        L = self.get("ledger.json")
+        L["skills"]["Erase the Rhythm"] = "1 (+1 to counters)"
+        self.put("ledger.json", L)
+        due, progress = GR.check(self.game())
+        self.assertEqual(due, [])
+        self.assertIn("Erase the Rhythm: 1 of 6 toward Lv.2", progress)
+        self.assertNotIn("skill growth is owed", " ".join(m for _, m in AH.report(self.game(), 1, sims=40)[0]))
 
 
 class AheadTests(Base):

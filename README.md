@@ -59,6 +59,7 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 | `quest list / add / step / done / fail / sizes` | Quest log (`--gm` shows secret quests) |
 | `beats init / status / mark <id> <state> [note]` | Planned story beats (`--gm` shows the text) |
 | `ahead [days]` | Lookahead |
+| `growth` | Skill levels and new skills that are due from what Mori has done |
 | `archive add <file> [--choice --title --chapter]` | Save a scene in full |
 | `archive book [--raw]` / `list` / `recap [n]` | Build `BOOK.md` and `BOOK.html`; list scenes; "previously on" |
 
@@ -137,6 +138,10 @@ The player never picks the flavour of kick. `techniques.json` holds a card for e
 
 `beats init` reads every beat and bullet from the arc cards with its day window and the level the plan expects. Each item is pending, delivered, changed or skipped; changed and skipped need a reason. `beats status` warns about items past their window and still pending.
 
+### Growth check
+
+`growth` counts every roll gm.py logged and turns it into skill progress: rolls in the art raise Renewal Taekwondo, successful reads raise Erase the Rhythm, hits taken raise Endurance, successful sense rolls can open a new skill. When a threshold is passed it prints the System message and the gm.py command, so growth is announced without the player asking. The thresholds are a proposal; put your own tracks in `growth.json`. `ahead` and `all` warn when growth is owed.
+
 ### Lookahead
 
 `ahead` reads the next few days: Mori's condition, which foes he can beat right now compared with rested, the Daily Discipline and what the Penalty Zone would do to him as he is, deadlines against his money, quests due, faction steps coming, and the XP the arc plan needs per day. It ends with the honest ways back (the daily, the XP to a level-up, people who can treat him, items, open quests). It changes nothing.
@@ -168,6 +173,7 @@ Suggested lines for `WORKFLOW.md`:
 ```
 - OPTIONS offer intentions, never techniques. In a fight: FIGHT_REFEREE. `bot.py -g eth move start <foe>`, then per exchange ONE `move attack|read` and ONE `move defend`; run the gm.py line it prints (always `--apply`), then `move result`.
 - XP: kills, quests, trials survived and fights won without killing. QUEST_KEEPER after each scene (`quest add/done`).
+- After each scene: `bot.py -g eth growth`; anything DUE is shown as a System message in the next scene, unasked.
 - After each scene: `bot.py -g eth ahead`; a FAIL means the next scene must offer a real way out. Mark beats (`beats mark`).
 - After EVERY scene: ARCHIVIST (`archive add <scene> --choice "..." --write`), then BOOKKEEPER (delta -> `bot.py -g eth book apply <delta> --write`), then `bot.py -g eth sync` must be CLEAN.
 - When the day changes or time is skipped: WORLD_CLOCK (`world tick`), then surface one trace.

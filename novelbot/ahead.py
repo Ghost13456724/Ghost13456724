@@ -91,6 +91,10 @@ def report(game, days=3, sims=300):
     if late:
         add("NOTE", f"{len(late)} planned beat item(s) are past their window and still pending (`beats status --gm`)")
 
+    from . import growth as GR
+    for d in GR.check(game)[0]:
+        add("WARN", f"skill growth is owed and has not been given: {d['skill']} {d['from'] or 'new'} -> {d['to']} (`bot.py growth`)")
+
     # honest ways back
     need = 100 * L["level"] - L.get("xp", 0)
     ways.append(f"level up: {need} XP away, and a level-up restores him fully")

@@ -17,6 +17,9 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 ## Hidden quests: reward what he already did
 After each scene, ask whether Mori did something the System would count: kept his word at a cost, spared a beaten enemy, protected someone weaker, endured what should have broken him, found what was hidden. If so, add it as `kind=hidden secret=1` and complete it at once, so the reward window arrives as a surprise.
 
+## Growth: never wait to be asked
+After every scene run `python3 bot.py -g F growth`. It counts every roll in the log and reports any skill level or new skill that is now due, with the System message to show and the gm.py command to record it. Show the message in the next scene and run the command. The player should never have to ask whether a skill improved. If the player does have to point out a missing reward or skill, log it as a correction so the rulings keeper records it.
+
 ## Completing and failing
 - `python3 bot.py -g F quest step <id> <n> --write` as steps are done.
 - `python3 bot.py -g F quest done <id>` shows the System window and what would be paid; add `--write` to pay it. Payment runs through gm.py, so a level-up (and its full restore) happens by the rules. Paste the bracketed lines into the scene.
