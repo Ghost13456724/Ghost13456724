@@ -135,6 +135,11 @@ class SceneTests(Base):
             self.assertIn(want, text)
         self.assertNotIn("Ground Drawer", text)   # the ledger records it as used early
 
+    def test_other_trees_use_their_own_mastery(self):
+        text = self.msgs(SC.check(self.g, "Inside the ward, he tries an Iron Sweep with a mop.\n"))
+        self.assertIn("'Iron Sweep' opens at mastery 2; Mori is at 0 in that art", text)
+        self.assertNotIn("'Inside'", text)        # an ordinary word, not a technique call
+
     def test_secret_watch(self):
         with open(self.g.path("secrets_watch.json"), "w") as f:
             f.write('[{"pattern": "true name", "rung": 5}, {"pattern": "old bell", "rung": 2}]')

@@ -127,7 +127,7 @@ def check(game, text, turn=False):
     # techniques above Mori's mastery in their own tree
     sheet = " ".join(str(v) for v in L.get("skills", {}).values()).lower()
     for name, (need, has) in technique_levels(game).items():
-        if need > has and name not in sheet and len(name) > 5:
+        if need > has and name not in sheet and " " in name:      # one-word names ("inside", "size") are ordinary words too
             for i, l in enumerate(lines, 1):
                 if re.search(rf"\b{re.escape(name)}\b", l, re.I):
                     add("WARN", f"'{name.title()}' opens at mastery {need}; Mori is at {has} in that art. Fine if someone else "
