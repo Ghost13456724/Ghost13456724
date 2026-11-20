@@ -84,8 +84,9 @@ def main(argv=None):
     sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
     sp.add_argument("--title"); sp.add_argument("--chapter"); sp.add_argument("--choice"); sp.add_argument("--day", type=int); sp.add_argument("--time")
     sp.add_argument("--raw", action="store_true", help="book: keep dice lines and option menus")
-    sp = sub.add_parser("tech", help="arsenal: init | list | install")
-    sp.add_argument("verb", choices=["init", "list", "install"]); sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("tech", help="arsenal: init | list | install | add <id> name=.. action=.. skill=.. [mastery=N] [effect.kp_mult=1.3] [cost.fatigue=2] [when.read=1] [opens=1] [note=..] | rm <id>")
+    sp.add_argument("verb", choices=["init", "list", "install", "add", "rm"]); sp.add_argument("args", nargs="*")
+    sp.add_argument("--write", action="store_true")
     sp = sub.add_parser("move", help="fight referee: start <foe> | attack | defend | read | result <intent> <TIER> [technique] | status | end")
     sp.add_argument("verb", choices=["start", "attack", "defend", "read", "result", "status", "end"])
     sp.add_argument("args", nargs="*"); sp.add_argument("--write", action="store_true")
@@ -321,15 +322,58 @@ def main(argv=None):
             elif a.verb == "install":
                 TE.install(g, techs, plan)
                 code = plan.finish(a.write)
+            elif a.verb == "rm":
+                if techs.pop(a.args[0], None) is None:
+                    plan.error(f"no technique {a.args[0]}")
+                plan.put_json("techniques.json", techs)
+                code = plan.finish(a.write)
+            elif a.verb == "add":
+                kv = dict(x.split("=", 1) for x in a.args[1:])
+                card = {"name": kv.get("name", a.args[0]), "action": kv.get("action", "hit"), "needs": {}, "effect": {}, "note": kv.get("note", "")}
+                if card["action"] not in ("hit", "dodge", "read", "grapple", "endure", "sense", "chase", "throw"):
+                    plan.error("action must be a gm.py action: hit, dodge, read, grapple, endure, sense, chase or throw")
+                if "skill" in kv:
+                    card["needs"] = {"skill": kv["skill"], "mastery": int(kv.get("mastery", 1))}
+                else:
+                    plan.error("skill=<the skill on his sheet that grants it> is required, so the card unlocks and grows with that skill")
+                for k, v in kv.items():
+                    if "." in k:
+                        group, key = k.split(".", 1)
+                        if group not in ("effect", "cost", "when", "growth"):
+                            plan.error(f"unknown field {k}")
+                        else:
+                            card.setdefault(group, {})[key] = json.loads(v) if v.replace(".", "", 1).lstrip("-").isdigit() else v
+                if "strike" in kv:
+                    card["strike"] = kv["strike"]
+                if kv.get("opens") in ("1", "true"):
+                    card["opens"] = True
+                if "when" in card:
+                    card["when"] = {k: bool(v) for k, v in card["when"].items()}
+                if not card["effect"]:
+                    plan.error("a technique must change a number: give at least one effect.<key>=<value> (kp_mult, dc_shift, tech, taken_mult, strike_mult...)")
+                techs[a.args[0]] = card
+                plan.note(f"technique card {a.args[0]}: {card}")
+                plan.put_json("techniques.json", techs)
+                code = plan.finish(a.write)
             else:
                 own = TE.owned(g.ledger, techs)
                 for tid, t in techs.items():
                     need = t.get("needs", {})
-                    print(f"  {'OWNED ' if tid in own else 'locked'} {t['name']:<36} {t['action']:<5} {t.get('effect', {})} "
-                          f"cost {t.get('cost', {}) or '-'} when {t.get('when', {}) or 'always'} | needs {need.get('skill', '-')} {need.get('mastery', '')}")
-                    print(f"         {t.get('note', '')}")
+                    if tid in own:
+                        e, c = TE.scaled(g.ledger, t)
+                        lv = TE.level(g.ledger, t)
+                        print(f"  OWNED  {t['name']:<36} {t['action']:<5} now {e} cost {c or '-'}"
+                              + (f"  (base {t.get('effect', {})} cost {t.get('cost', {}) or '-'}; +{lv} from mastery and use)" if lv else "")
+                              + f" | used {t.get('used', 0)}x, rank {TE.rank(t)}")
+                    else:
+                        print(f"  locked {t['name']:<36} {t['action']:<5} opens at {need.get('skill', '-')} mastery {need.get('mastery', '')}")
+                    print(f"         {t.get('note', '')}" + (f"  [only when: {', '.join(t['when'])}]" if t.get("when") else ""))
                 if not techs:
                     print("  no technique cards: run `tech init --write`")
+                for m in TE.missing_cards(g, techs):
+                    print(f"  WARN no card for {m}: he owns it but cannot use it in a fight. Add one with `tech add`")
+                if TE.stale(g, techs):
+                    print("  WARN the ledger's technique effects are behind his current skill: run `tech install --write`")
         if a.cmd == "move":
             techs, plan, v, r = TE.load(g), Plan(g), a.verb, a.args
             if v == "start":
@@ -344,8 +388,8 @@ def main(argv=None):
                 print(f"  Mori uses: {name}" + (" at the weak point" if best["weak"] else "") + f"  ({best['R']['p']}% to succeed)")
                 if best["tech"]:
                     print(f"    why: {best['tech'].get('note', '')}")
-                    if best["tech"].get("cost"):
-                        print(f"    cost after the roll: {best['tech']['cost']}")
+                    if best["cost"]:
+                        print(f"    cost after the roll: {best['cost']}")
                 if mod:
                     print(f"    includes mod={mod:+d} from rulings (adaptation and the like)")
                 if shift:
@@ -355,8 +399,8 @@ def main(argv=None):
                     print(f"    passed over: {n}{' (weak point)' if o['weak'] else ''} at {o['R']['p']}%")
                 print("  roll it with:\n    " + TE.gm_line(TE.INTENT[v], fid, best, mod, shift))
                 print(f"  then record it: bot.py move result {v} <STRONG|CLEAN|PARTIAL|FAIL>" + (f" {best['id']}" if best["id"] else "") + " --write")
-                if best["id"] and not any(e["id"] == TE.PREFIX + best["id"] for e in g.ledger.get("effects", [])):
-                    print("  !! this technique is not in the ledger yet: run `bot.py tech install --write` first")
+                if TE.stale(g, techs):
+                    print("  !! the ledger's technique effects are behind his current skill: run `bot.py tech install --write` first")
             elif v == "result":
                 state, tier = TE.record(g, techs, r[0], r[1], r[2] if len(r) > 2 else None, plan)
                 if state:
@@ -429,6 +473,8 @@ def main(argv=None):
             extra = [("NOTE", f"log has {len(PE.scan(g, PE.load(g)))} trust change(s) not in people.json: run `people scan`")] if PE.scan(g, PE.load(g)) else []
             extra += CL.status(CL.load(g))[1] if g.text("clues.json") else [("NOTE", "no clues.json: run `clues init`")]
             extra += W.status(g, W.load(g))[1]
+            extra += [("WARN", f"no technique card for {m}") for m in TE.missing_cards(g, TE.load(g))]
+            extra += [("WARN", "technique effects in the ledger are behind his skill: run `tech install --write`")] if TE.stale(g, TE.load(g)) else []
             extra += [f for f in QU.findings(g, QU.load(g))] + [f for f in BE.status(g, BE.load(g))[1]]
             arch = AR.load(g)
             if not arch["scenes"]:

@@ -418,7 +418,7 @@ class TechTests(Base):
 
     def test_owned_follows_the_sheet(self):
         g = self.game()
-        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED))
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED) - {"ground_drawer", "dragon_catcher", "true_hoechook"})
         g.ledger["skills"] = {"Renewal Taekwondo": "2"}
         self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), {"x_guard"})
 
@@ -466,6 +466,52 @@ class TechTests(Base):
         big = g.gm.compute(g.ledger, g.foes, "hit", "dokkaebi", use=("t_three_stage_hoechook",))
         self.assertAlmostEqual(big["kp"], plain["kp"] * 1.5)                      # only when called; passive rolls unchanged
         self.assertEqual(big["dc"], plain["dc"] + 2)
+
+    def test_techniques_grow_with_mastery_and_use(self):
+        g = self.game()
+        t = TE.load(g)["three_stage_hoechook"]
+        self.assertEqual(TE.scaled(g.ledger, t), ({"kp_mult": 1.5, "dc_shift": 2}, {"fatigue": 3}))
+        g.ledger["skills"]["Renewal Taekwondo"] = "8"
+        e, c = TE.scaled(g.ledger, t)
+        self.assertEqual((e["kp_mult"], e.get("dc_shift"), e["tech"], c), (1.7, None, 2, {}))    # stronger, no longer awkward, free
+        low = TE.load(g)["lowest_hoechook"]
+        self.assertEqual(TE.scaled(g.ledger, low)[0]["kp_mult"], 1.0)                              # its weakness is trained out
+        self.assertEqual(set(TE.owned(g.ledger, TE.load(g))), set(TE.PROPOSED))                    # mastery 8 opens every card
+        true = TE.load(g)["true_hoechook"]
+        self.assertEqual(TE.scaled(g.ledger, true)[1], {"fatigue": 29, "hp_pct": 8})
+
+    def test_use_ranks_a_technique_up_and_install_follows(self):
+        self.run_plan(lambda g, p: TE.install(g, TE.load(g), p))
+        self.start()
+        techs = self.get("techniques.json")
+        techs["three_stage_hoechook"]["used"] = 7
+        self.put("techniques.json", techs)
+        _, plan, _ = self.result("attack", "CLEAN", "three_stage_hoechook")
+        self.assertTrue(any("mastery through use. Rank 1" in n for n in plan.notes))
+        g = self.game()
+        self.assertTrue(TE.stale(g, TE.load(g)))
+        self.run_plan(lambda g, p: TE.install(g, TE.load(g), p))
+        g = self.game()
+        self.assertFalse(TE.stale(g, TE.load(g)))
+        eff = next(e for e in g.ledger["effects"] if e["id"] == "t_three_stage_hoechook")
+        self.assertEqual((eff["kp_mult"], eff["dc_shift"]), (1.55, 1))
+        self.result("attack", "FAIL", "three_stage_hoechook")
+        self.assertEqual(self.get("techniques.json")["three_stage_hoechook"]["used"], 8)           # a miss teaches nothing
+
+    def test_new_skills_are_noticed_and_stronger_stats_change_the_pick(self):
+        L = self.get("ledger.json")
+        L["skills"]["Limiter Needle"] = "1"
+        self.put("ledger.json", L)
+        with open(os.path.join(self.dir, "SKILL_TREES.md"), "a") as f:
+            f.write("- M2 **Baekdu Chain** (two kicks)\n")
+        g = self.game()
+        miss = " | ".join(TE.missing_cards(g, TE.load(g)))
+        self.assertIn("Baekdu Chain (opened at mastery 2)", miss)
+        self.assertIn("Limiter Needle (a skill on the sheet)", miss)
+        self.assertNotIn("True Hoechook", miss)                                                    # mastery 7: not his yet
+        weak = TE.options(g, g.sheet(), TE.load(g), "hit", "stone_guard")[0]["R"]["p"]
+        strong = TE.options(g, g.sheet(level=40), TE.load(g), "hit", "stone_guard")[0]["R"]["p"]
+        self.assertGreater(strong, weak)
 
     def test_options_must_not_make_the_player_pick_the_kick(self):
         scene = "The club comes down.\n\n1. Use Lowest Hoechook\n2. Back off\n3. Something else\n"

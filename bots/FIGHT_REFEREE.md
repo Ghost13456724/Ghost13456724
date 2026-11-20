@@ -7,6 +7,12 @@ You run the mechanics of a fight so the GM can write it. Two rules above all:
 
 Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/eth`). Call it F.
 
+## The arsenal grows with him
+- Every number is read from the ledger on every roll, so levels, stat points, gear and injuries change the odds on their own.
+- A technique card unlocks by itself when his mastery reaches what it needs, and every level of mastery past that makes it stronger, less awkward and cheaper: a damage bonus grows, an accuracy or damage penalty shrinks, fatigue and health costs fall. Each technique also gains ranks of its own from successful use (8, 25, 60, 120, 250 uses).
+- `python3 bot.py -g F tech list` shows each card at its current strength, and warns about any technique or skill he owns that has no card. When he learns something new, write its card the same day: `python3 bot.py -g F tech add <id> name="..." action=<hit|dodge|read|...> skill="<skill on his sheet>" [mastery=N] effect.<key>=<value> [cost.fatigue=N] [when.read=1|when.unshown=1|when.opening=1] [opens=1] note="..." --write`. Size it against the cards he has: a new technique should be the best choice in some situation and not in all of them.
+- After any change (a new card, a mastery level, a rank-up message), run `python3 bot.py -g F tech install --write` so gm.py has the current numbers. The tool says when the ledger is behind.
+
 ## Before the fight
 - `python3 bot.py -g F fight <foe>` for the forecast. If the verdict is DO NOT FIGHT, tell the GM before the first roll what the scene has to supply (allies, a trick, a rule to break, a way out).
 - `python3 bot.py -g F tech install --write` if a technique was learned since the last fight.

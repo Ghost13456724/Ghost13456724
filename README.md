@@ -54,7 +54,7 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 | `rules scan / list / import <file> / add / set / rm` | Harvest rulings and corrections from the log; review and edit them |
 | `rules mods <foe>` / `bump <id> <foe>` / `reset <id> <foe>` / `use <id>` | The modifier to pass to the next roll; grow or clear a bonus; spend a once-a-day item |
 | `rules dice` / `rules audit` | Luck and difficulty report; skills with no number, rolls not applied, unreviewed rulings |
-| `tech init / list / install` | Technique cards; `install` makes them callable in gm.py |
+| `tech init / list / install / add <id> ... / rm <id>` | Technique cards at their current strength; `install` makes them callable in gm.py |
 | `move start <foe>` / `attack` / `defend` / `read` / `result ...` / `end` | Fight referee: the move Mori uses and the exact gm.py line |
 | `quest list / add / step / done / fail / sizes` | Quest log (`--gm` shows secret quests) |
 | `beats init / status / mark <id> <state> [note]` | Planned story beats (`--gm` shows the text) |
@@ -125,7 +125,9 @@ Once a delta has been applied, `STATE_NOW.md` is rebuilt from the files on every
 
 The player never picks the flavour of kick. `techniques.json` holds a card for each technique: what it does in gm.py terms, what it needs on the sheet, what it costs, and when it applies (only the first time a foe sees it, only after Mori has read the foe, only on an opening). `move attack` tries every technique he owns against gm.py's numbers for this foe at this moment and prints the one he uses, the reason, and the exact `gm.py roll ... use=<technique> --apply` line. `move result` records how it went, which is what makes a foe wise to a trick, opens counters after a successful read, puts a foe off balance, and grows adaptation after a lost exchange. One exchange is one roll for his action and one for his defence. The fight forecast uses the arsenal too.
 
-`tech init` writes five **proposed** cards for the techniques now on the sheet (Three-Stage Hoechook, Lowest Hoechook, Counter Hoechook, X Guard, Erase the Rhythm). Their numbers are a starting proposal, not canon: edit `techniques.json`. The scene check warns when an option asks the player to choose a technique.
+**The arsenal grows with him.** A card unlocks by itself when his mastery reaches what it needs. Every level of mastery past that point makes it stronger, less awkward and cheaper (a damage bonus grows by a tenth of itself, a penalty shrinks, technique +1 per two levels, fatigue -1 and health cost -2), and each technique gains ranks of its own at 8, 25, 60, 120 and 250 successful uses. A card can override this with its own `growth`. `tech list` shows every card at its current strength and warns about any opened technique or sheet skill that has no card; `tech add` writes one; `tech install` pushes the current numbers into the ledger.
+
+`tech init` writes eight **proposed** cards: five for techniques now on the sheet (Three-Stage Hoechook, Lowest Hoechook, Counter Hoechook, X Guard, Erase the Rhythm) and three that unlock later by mastery (Ground Drawer and Dragon Catcher at 5, True Hoechook at 7). Their numbers are a starting proposal, not canon: edit `techniques.json`. The scene check warns when an option asks the player to choose a technique.
 
 ### Quest log
 

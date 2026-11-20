@@ -34,14 +34,69 @@ PROPOSED = {
     "x_guard": {
         "name": "X Guard", "action": "dodge", "needs": {"skill": "Renewal Taekwondo", "mastery": 1},
         "effect": {"taken_mult": 0.7, "dc_shift": 1}, "note": "crossed fists: takes the hit on the forearms instead of slipping it; less damage, no escape"},
+    "ground_drawer": {
+        "name": "Ground Drawer", "action": "dodge", "needs": {"skill": "Renewal Taekwondo", "mastery": 5},
+        "effect": {"taken_mult": 0.6}, "cost": {"fatigue": 2},
+        "note": "a dust arc torn up from the floor that bleeds off what is coming at him"},
+    "dragon_catcher": {
+        "name": "Dragon Catcher", "action": "hit", "strike": "kick", "needs": {"skill": "Renewal Taekwondo", "mastery": 5},
+        "effect": {"kp_mult": 1.7, "dc_shift": 1}, "when": {"opening": True}, "cost": {"fatigue": 4},
+        "note": "hook the neck of an off-balance foe and drop it head first"},
+    "true_hoechook": {
+        "name": "True Hoechook", "action": "hit", "strike": "kick", "needs": {"skill": "Renewal Taekwondo", "mastery": 7},
+        "effect": {"kp_mult": 2.5, "dc_shift": 1}, "cost": {"fatigue": 30, "hp_pct": 10},
+        "note": "palm up, fist clenched, then the vortex. It costs him a tenth of his health and most of his wind"},
     "erase_the_rhythm": {
         "name": "Erase the Rhythm", "action": "read", "needs": {"skill": "Erase the Rhythm"},
         "effect": {"tech": 1}, "note": "hold the breath, go loose: reading from stillness"},
 }
 
 
+RANKS = (8, 25, 60, 120, 250)        # successful uses at which a technique gains a rank of its own
+
+
 def load(game):
     return game.json("techniques.json", None) or {}
+
+
+def level(L, t):
+    """How far past the unlock point he is: mastery of the art beyond what the technique needs, plus its own rank from use."""
+    need = t.get("needs", {})
+    have = mastery(L, need["skill"]) if need.get("skill") else None
+    return max(0, (have or 0) - need.get("mastery", 1)) + rank(t)
+
+
+def rank(t):
+    return sum(1 for r in RANKS if t.get("used", 0) >= r)
+
+
+def scaled(L, t):
+    """The card at his current skill: stronger where it was strong, less awkward where it was awkward, cheaper to use.
+
+    Per level past the unlock: a damage bonus grows by a tenth of itself; a damage or accuracy penalty shrinks;
+    technique +1 per two levels; fatigue cost -1 and health cost -2 per level. A card's own "growth" overrides this."""
+    lv, g = level(L, t), t.get("growth", {})
+    e, c = dict(t.get("effect", {})), dict(t.get("cost", {}))
+    if lv:
+        if "kp_mult" in e:
+            k = e["kp_mult"]
+            e["kp_mult"] = round(k + lv * g.get("kp_mult", (k - 1) * 0.1 if k > 1 else 0.05), 2) if k > 1 else round(min(1.0, k + lv * g.get("kp_mult", 0.05)), 2)
+        if "taken_mult" in e:
+            e["taken_mult"] = round(max(0.3, e["taken_mult"] - lv * g.get("taken_mult", 0.04)), 2)
+        if "dc_shift" in e:
+            d = e["dc_shift"]
+            step = lv * g.get("dc_shift", 0.5)
+            e["dc_shift"] = int(max(0, d - step)) if d > 0 else int(d - (step if g.get("dc_shift") else 0))
+            if e["dc_shift"] == 0:
+                del e["dc_shift"]
+        e["tech"] = e.get("tech", 0) + int(lv * g.get("tech", 0.5))
+        if not e["tech"]:
+            del e["tech"]
+        if "fatigue" in c:
+            c["fatigue"] = max(0, c["fatigue"] - lv * g.get("fatigue", 1))
+        if "hp_pct" in c:
+            c["hp_pct"] = max(0, c["hp_pct"] - lv * g.get("hp_pct", 2))
+    return e, {k: v for k, v in c.items() if v}
 
 
 def fight_state(game):
@@ -70,10 +125,10 @@ def with_effects(L, techs):
     """A copy of the sheet in which every owned technique exists as a callable gm.py effect."""
     L = copy.deepcopy(L)
     have = {e["id"] for e in L.get("effects", [])}
+    L["effects"] = [e for e in L.get("effects", []) if not e["id"].startswith(PREFIX)]
     for tid, t in owned(L, techs).items():
-        if PREFIX + tid not in have:
-            L.setdefault("effects", []).append(dict(t.get("effect", {}), id=PREFIX + tid, src="technique", on=True, passive=False,
-                                                    when={"actions": [t["action"]]}, note=t.get("note", "")))
+        L["effects"].append(dict(scaled(L, t)[0], id=PREFIX + tid, src="technique", on=True, passive=False,
+                                 when={"actions": [t["action"]]}, note=t.get("note", "")))
     return L
 
 
@@ -115,9 +170,9 @@ def options(game, L, techs, action, foe_id, state=None, mod=0, shift=0):
                 lo, hi = R.get("dmg", (0, 0))
                 loss = (lo + hi) / 2
                 value = -(ch.get("FAIL", 0) * loss + ch.get("PARTIAL", 0) * loss * 0.5 + ch.get("FAIL+", 0) * loss * 1.5) / 100 if action == "dodge" else R["p"] / 100
-            cost = (t or {}).get("cost", {})
+            cost = scaled(L, t)[1] if t else {}
             value -= cost.get("fatigue", 0) * 0.004 + cost.get("hp_pct", 0) * 0.01
-            out.append({"id": tid, "tech": t, "weak": weak, "R": R, "value": value, "chances": ch})
+            out.append({"id": tid, "tech": t, "weak": weak, "R": R, "value": value, "chances": ch, "cost": cost})
     return sorted(out, key=lambda o: (-o["value"], o["id"] is not None))
 
 
@@ -156,18 +211,41 @@ def gm_line(action, foe_id, opt, mod, shift):
 
 
 def install(game, techs, plan):
-    """Put every owned technique into the ledger as a gm.py effect, so `use=` works on real rolls."""
+    """Write every owned technique into the ledger at its current strength, so `use=` works on real rolls."""
     L = game.sheet()
     before = {e["id"]: e for e in L.get("effects", [])}
     L2 = with_effects(L, techs)
-    L2["effects"] = [e for e in L2["effects"] if not (e["id"].startswith(PREFIX) and e["id"][len(PREFIX):] not in owned(L, techs))]
     for e in L2["effects"]:
-        if e["id"].startswith(PREFIX):
+        if e["id"].startswith(PREFIX) and e != before.get(e["id"]):
             t = techs[e["id"][len(PREFIX):]]
-            e.update(dict(t.get("effect", {}), note=t.get("note", "")))
-            if e != before.get(e["id"]):
-                plan.note(f"effect {e['id']}: {t['name']} {t.get('effect', {})}")
+            plan.note(f"effect {e['id']}: {t['name']} {scaled(L, t)[0]}" + (f" cost {scaled(L, t)[1]}" if scaled(L, t)[1] else ""))
+    for old in before:
+        if old.startswith(PREFIX) and old not in {e["id"] for e in L2["effects"]}:
+            plan.note(f"effect {old} removed (no longer owned)")
     plan.put_json("ledger.json", L2)
+    return L2
+
+
+def stale(game, techs):
+    """True when the ledger's technique effects are behind his current skill."""
+    L = game.sheet()
+    return [e for e in L.get("effects", []) if e["id"].startswith(PREFIX)] != [e for e in with_effects(L, techs)["effects"] if e["id"].startswith(PREFIX)]
+
+
+def missing_cards(game, techs):
+    """Techniques his mastery has opened in SKILL_TREES.md, and skills on his sheet, that have no card yet."""
+    from . import scene as SC
+    L, out = game.ledger, []
+    names = " ".join(t["name"].lower() for t in techs.values())
+    art = mastery(L, "Renewal Taekwondo") or 0
+    for name, need in SC.technique_levels(game).items():
+        if need <= art and name not in names:
+            out.append(f"{name.title()} (opened at mastery {need})")
+    for skill in L.get("skills", {}):
+        base = re.sub(r"\s*\(.*", "", skill).lower()
+        if "taekwondo" not in base and base not in names and not any(base in (t.get("needs", {}).get("skill", "").lower()) for t in techs.values()):
+            out.append(f"{skill} (a skill on the sheet)")
+    return out
 
 
 def record(game, techs, intent, tier, tid, plan):
@@ -186,6 +264,14 @@ def record(game, techs, intent, tier, tid, plan):
             tid = tid[len(PREFIX):] if tid.startswith(PREFIX) else tid
             if tid not in techs:
                 return plan.error(f"unknown technique {tid}"), None
+            if good:
+                t = techs[tid]
+                was = rank(t)
+                t["used"] = t.get("used", 0) + 1
+                if rank(t) > was:
+                    plan.note(f"[{t['name']}: mastery through use. Rank {rank(t)}.]  It now hits harder and costs less; "
+                              "run `tech install --write` so gm.py has the new numbers")
+                plan.put_json("techniques.json", techs)
             if tid not in state["shown"]:
                 state["shown"].append(tid)
                 plan.note(f"the foe has now seen {techs[tid]['name']}")
