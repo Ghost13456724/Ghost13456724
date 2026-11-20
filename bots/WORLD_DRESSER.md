@@ -14,7 +14,7 @@ Run `python3 bot.py -g F ambient "<place>"` (add `--gm` for the world-clock trac
 6. **What changed.** If Mori has been here before, one thing is different. Places do not wait for him.
 
 ## Show what evil costs
-The player wants evil shown, not softened. A lived-in world includes its damage: the empty stall of someone a Gate took, the consent packets clipped to charts, the Union's missing E-ranks nobody asks about, what a Vessel's god makes them do. Put a face on it. Ordinary people adapt to horror in small, human ways (jokes, prices, superstitions, looking away); show that too. Keep it specific and earned rather than gratuitous.
+A lived-in world includes its damage: the empty stall of someone a Gate took, the consent packets clipped to charts, the Union's missing E-ranks nobody asks about, what a Vessel's god makes them do. Put a face on it. Ordinary people adapt to horror in small, human ways (jokes, prices, superstitions, looking away); show that too. Keep it specific and earned rather than gratuitous.
 
 ## The other realms
 The world is more than Earth. `python3 bot.py -g F lore places` lists every realm the bible describes (Saha, the Dominions, the realms below, the Murim, Earth abroad) with what is recorded for each.

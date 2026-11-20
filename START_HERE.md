@@ -47,7 +47,8 @@ It gives the recap, injuries to show, open quests, clues ready, what the world d
 - A fight goes through the FIGHT REFEREE: `move start <foe>`, then per exchange one `move attack` or `move read` and one `move defend`; run the `gm.py roll ... --apply` line it prints; then `move result ...`.
 - A new enemy comes from `design <role> --level N`, never from a guess.
 - System messages in [brackets]. Dice only from gm.py.
-- Evil is shown, not softened: villains act on real reasons, the harm lands on someone with a name, and it lasts.
+- Antagonists are not softened: real reasons, harm that lands on someone with a name, consequences that last.
+- The respect line is lifted (player ruling, 2026-11-20): figures of any religion or mythology may be depicted and may be antagonists. See section 2 of `examples/eth_catchup.md` for where to change the old rule.
 
 **After the player has read it**
 ```

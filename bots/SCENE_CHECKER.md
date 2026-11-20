@@ -14,14 +14,14 @@ After big scenes (boss fights, reveals, trials, act ends) and every ~4 ordinary 
    - `STATE_NOW.md` and the last 30 lines of `LOG.md`: HP, money, time and date, injuries, who is where, what Mori carries, what he has lost (memories, items).
    - `ledger.json`: skills and mastery, items, flags.
    - The BIBLE: names, places, how the System talks, what the world knows.
-   - `GM_SECRETS.md`: the reveal ladder section, the rulings sections, and the two fight sections (how Mori fights, the fight-writing checklist). Rulings marked as overriding win.
+   - `GM_SECRETS.md`: the reveal ladder section, the rulings sections, and the two fight sections (how Mori fights, the fight-writing checklist). Rulings marked as overriding win. A ruling in `rulings.json` marked PLAYER RULING overrides anything older in GM_SECRETS or the skill; in particular, if `respect_line_lifted` is on file, depicting a religious or mythic figure as an antagonist is NOT a finding.
 3. Check, and report only these:
    - **Continuity errors:** HP, money, time, names, injuries, who is where, items used that he does not have, a dead or absent person on stage.
    - **Secret leaks:** a hidden truth stated or shown ahead of the reveal ladder's current rung. A clue may appear; the truth behind it may not.
    - **Broken rules or mechanics:** a contested action with no roll, a dice line the tool could not match, a result that ignores the roll, a level or stat gain the System's rules do not give, 0 HP not treated as down and dying, a technique above his mastery used successfully, a power jump with no cost.
    - **Power scale:** for any fight, run `python3 bot.py -g F fight <foe>`. Flag a win the forecast puts under 10% unless the scene shows what changed the odds (allies, a trick, a broken condition), and flag a foe he should beat easily written as a desperate struggle.
    - **Fight-style violations:** each item of the fight-writing checklist the scene breaks, by its number.
-   - **Pulled punches:** the player has said evil may be shown. Flag a scene that softens it: a villain's cruelty reported instead of seen, harm with no victim who has a name or a face, a threat that is never carried out, a monster made safe by a joke, a consequence that vanishes by the next scene. Evil should be specific, have its reasons, and cost someone the reader has met. This is about weight, not gore, and it does not lift any limit the player has set elsewhere.
+   - **Pulled punches:** flag a scene that softens its antagonists: a villain's cruelty reported instead of seen, harm with no victim who has a name or a face, a threat that is never carried out, a monster made safe by a joke, a consequence that vanishes by the next scene. Evil should be specific, have its reasons, and cost someone the reader has met. This is about weight, not gore, and it does not lift any limit the player has set elsewhere.
    - **Plot holes:** something that cannot follow from the previous state.
 4. Also read what the tool reports from the other trackers:
    - a fact surfacing in front of someone "not in the know" (people tracker): an error if that person says it or acts on it;

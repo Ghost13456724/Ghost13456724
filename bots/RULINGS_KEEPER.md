@@ -14,6 +14,9 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
    - **rule** (mechanics): rewrite `text` as the rule itself. If it contradicts the bible or GM_SECRETS, do not pick a side: report the contradiction to the GM so the player can decide.
 4. `python3 bot.py -g F rules audit`. For every skill or technique "on the sheet but with no number": either add a gm.py effect (`gm.py effect add <id> '<json>'`; an active technique takes `"passive": false` and is called with `use=<id>`), or add a ruling saying exactly how it is applied to a roll. A technique the player can choose must change something.
 
+## Player rulings come first
+When the player changes a standing rule (a content line, a tone rule, how something works), record it as `kind=rule` with the text starting `PLAYER RULING <date>:`, say exactly which older lines it overrides, and edit those lines in GM_SECRETS so they no longer contradict it. Tell the player if the same rule is also written in the GM skill, which only they can edit.
+
 ## During play
 - Before a roll against a foe: `python3 bot.py -g F rules mods <foe>` and pass the `mod=` it prints to `gm.py roll`.
 - After Mori loses an exchange to a foe whose tell he has spotted: `rules bump adaptation <foe> --write`. When the fight ends: `rules reset adaptation <foe> --write`.

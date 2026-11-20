@@ -23,9 +23,15 @@ $B rules add longevity kind=rule text="Pilgrim's Blessing, Longevity: immune to 
 $B rules add death_save kind=rule text="At 0 HP with nobody to stabilise him: one death save, d20 vs DC 11, with a bonus only for something already established in the scene. Decide whether this stands beside the written 0 HP rule" --write
 $B rules add system_rewards kind=lesson text="The System rewards what Mori does without being asked. After every scene, check for a hidden quest he has already fulfilled and pay it then. (The 'Courage to Stay' reward only happened because the player pointed out it was missing.)" --write
 $B rules add growth_unasked kind=lesson text="Skill gains are announced by the GM when they are earned. Run the growth check after every scene. (Mastery 4, Erase the Rhythm and Endurance were only given because the player asked.)" --write
-$B rules add show_evil kind=lesson text="Evil is shown on the page, not softened or summarised: villains act on real reasons, their harm lands on people the reader has met, and consequences last. Weight, not gore. (Player, 2026-11-20.)" --write
+$B rules add respect_line_lifted kind=rule text="PLAYER RULING 2026-11-20: the 'respect line' is lifted. The player does not mind evil being shown: figures of real religions and mythologies (Buddhas, bodhisattvas, arhats, gods of any pantheon, the Abrahamic God and its relics) may be depicted, may be antagonists and may do evil when the story is better for it. This overrides the respect line at the top of GM_SECRETS, the Christian-relic line in its rulings section, and the same rule in the GM skill. Nothing already established has to be rewritten because of it." --write
+$B rules add show_evil kind=lesson text="Do not soften antagonists: their harm is specific, lands on people the reader has met, and lasts. Weight, not gore." --write
 $B rules add xp_sources kind=rule text="XP comes from kills, quests, trials survived and fights won without killing" --write
 ```
+
+Then make the same change where the old rule is written, so no bot reads it as still binding:
+- In `eth/GM_SECRETS.md`, replace the line that starts `Respect line:` with: `Respect line: LIFTED by the player on 2026-11-20. Any figure of any religion or mythology may be depicted, may be an antagonist and may do evil when the story is better for it. Existing plot stays as written unless the GM chooses to change it.`
+- In the same file's rulings section, delete the bullet that says an Aegis fragment and a white feather "replace any Christian relic".
+- The GM skill ("Standing rules from the user") still says to respect real religions and never depict the Abrahamic God. The player edits or removes that line in the skill; until then, this ruling wins.
 
 ## 3. The quest already completed in the story, and the ones owed
 The hidden quest "The Courage to Stay" paid a blessing and no XP. Record it, then pay what the new XP rule owes.
