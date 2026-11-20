@@ -24,7 +24,6 @@ $B rules add death_save kind=rule text="At 0 HP with nobody to stabilise him: on
 $B rules add system_rewards kind=lesson text="The System rewards what Mori does without being asked. After every scene, check for a hidden quest he has already fulfilled and pay it then. (The 'Courage to Stay' reward only happened because the player pointed out it was missing.)" --write
 $B rules add growth_unasked kind=lesson text="Skill gains are announced by the GM when they are earned. Run the growth check after every scene. (Mastery 4, Erase the Rhythm and Endurance were only given because the player asked.)" --write
 $B rules add respect_line_lifted kind=rule text="PLAYER RULING 2026-11-20: the 'respect line' is lifted. The player does not mind evil being shown: figures of real religions and mythologies (Buddhas, bodhisattvas, arhats, gods of any pantheon, the Abrahamic God and its relics) may be depicted, may be antagonists and may do evil when the story is better for it. This overrides the respect line at the top of GM_SECRETS, the Christian-relic line in its rulings section, and the same rule in the GM skill. Nothing already established has to be rewritten because of it." --write
-$B rules add show_evil kind=lesson text="Do not soften antagonists: their harm is specific, lands on people the reader has met, and lasts. Weight, not gore." --write
 $B rules add xp_sources kind=rule text="XP comes from kills, quests, trials survived and fights won without killing" --write
 ```
 
