@@ -1,0 +1,152 @@
+{
+  "tiers": [
+    {
+      "name": "Tempered Body",
+      "abbr": "TB",
+      "floor": 0,
+      "stages": 9
+    },
+    {
+      "name": "Initial Element",
+      "abbr": "IE",
+      "floor": 10,
+      "stages": 9
+    },
+    {
+      "name": "Kai Yuan",
+      "abbr": "KY",
+      "floor": 20,
+      "stages": 9
+    },
+    {
+      "name": "Qi Transformation",
+      "abbr": "QT",
+      "floor": 30,
+      "stages": 9
+    },
+    {
+      "name": "Separation and Reunion",
+      "abbr": "SR",
+      "floor": 40,
+      "stages": 9
+    },
+    {
+      "name": "True Element",
+      "abbr": "TE",
+      "floor": 50,
+      "stages": 9
+    },
+    {
+      "name": "Immortal Ascension",
+      "abbr": "IA",
+      "floor": 60,
+      "stages": 9
+    },
+    {
+      "name": "Transcendent",
+      "abbr": "TR",
+      "floor": 70,
+      "stages": 9
+    },
+    {
+      "name": "Saint",
+      "abbr": "ST",
+      "floor": 80,
+      "stages": 3
+    },
+    {
+      "name": "Saint King",
+      "abbr": "SK",
+      "floor": 90,
+      "stages": 3
+    },
+    {
+      "name": "Origin Returning",
+      "abbr": "OR",
+      "floor": 100,
+      "stages": 3
+    },
+    {
+      "name": "Origin King",
+      "abbr": "OK",
+      "floor": 110,
+      "stages": 3
+    },
+    {
+      "name": "Dao Source",
+      "abbr": "DS",
+      "floor": 120,
+      "stages": 3
+    },
+    {
+      "name": "Emperor",
+      "abbr": "EM",
+      "floor": 130,
+      "stages": 3
+    },
+    {
+      "name": "Great Emperor",
+      "abbr": "GE",
+      "floor": 140,
+      "stages": 1
+    },
+    {
+      "name": "Open Heaven",
+      "abbr": "OH",
+      "floor": 150,
+      "stages": 9
+    }
+  ],
+  "bands": [
+    {
+      "name": "auto",
+      "min_gap": 15
+    },
+    {
+      "name": "trivial",
+      "min_gap": 8
+    },
+    {
+      "name": "easy",
+      "min_gap": 3
+    },
+    {
+      "name": "even",
+      "min_gap": -3
+    },
+    {
+      "name": "hard",
+      "min_gap": -8
+    },
+    {
+      "name": "desperate",
+      "min_gap": -15
+    },
+    {
+      "name": "beyond",
+      "min_gap": -25
+    }
+  ],
+  "difficulty": {
+    "trivial": 3,
+    "easy": 7,
+    "even": 11,
+    "hard": 14,
+    "desperate": 17,
+    "beyond": 20
+  },
+  "matchup": {
+    "no_damage_gap": 10,
+    "blitz_gap": 10,
+    "upset_gap": 8,
+    "default_resist_penalty": 5,
+    "tech_divisor": 4,
+    "tech_cap": 5
+  },
+  "evidence": {
+    "outlier_gap": 8,
+    "statement_bonus": 3,
+    "tolerance": 3,
+    "max_jump": 10
+  }
+}

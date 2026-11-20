@@ -33,7 +33,8 @@ def _fmt_stats(stats):
 def cmd_show(a, scale, canon):
     key, char = C.get(canon, a.name)
     stats, applied = S.effective(char, a.form)
-    print(f"{key}  ({S.tier_of(scale, S.overall(stats))}, overall {S.overall(stats)})  "
+    realm = f"{char['realm']}, fights as " if char.get("realm") else ""
+    print(f"{key}  ({realm}{S.tier_of(scale, S.overall(stats))}, overall {S.overall(stats)})  "
           f"{char.get('status', 'alive')} at {char.get('location', '?')}")
     print("  " + _fmt_stats(stats))
     for line in applied:
@@ -85,14 +86,37 @@ def cmd_roll(a, scale, canon):
     return 0
 
 
-def cmd_tier(a, scale, canon):
-    print(f"{a.rating}: {S.tier_of(scale, a.rating)}")
+def cmd_rate(a, scale, canon):
+    rating = S.parse_rating(scale, " ".join(a.rating))
+    print(f"{rating}: {S.tier_of(scale, rating)}")
+    return 0
+
+
+def cmd_new(a, scale, canon):
+    if C.resolve(canon, a.name) in canon["characters"] and C.resolve(canon, a.name).lower() == a.name.lower():
+        print(f"error: {a.name} already has a sheet", file=sys.stderr)
+        return 2
+    base = S.parse_rating(scale, a.realm)
+    canon["characters"][a.name] = {
+        "aliases": [], "status": "alive", "location": a.location or "?", "realm": a.realm,
+        "stats": {s: round(base + a.edge, 1) for s in S.STATS},
+        "feats": [], "abilities": [], "items": [], "knows": [], "conditions": []}
+    C.save("canon.json", canon, a.data)
+    print(f"Added {a.name}: {a.realm} = {base}, edge {a.edge:+} -> all stats {round(base + a.edge, 1)}. "
+          "Record feats to justify anything above the realm baseline.")
+    return 0
+
+
+def cmd_rules(a, scale, canon):
+    for i, rule in enumerate(C.load("rules.json", a.data).get("house_rules", []), 1):
+        print(f"  {i}. {rule}")
     return 0
 
 
 def cmd_ladder(a, scale, canon):
     for t in sorted(scale["tiers"], key=lambda t: t["floor"]):
-        print(f"  {t['floor']:>4}+  {t['name']:<12} {t.get('benchmark', '')}")
+        stages = f"{t['stages']} stages" if t.get("stages", 1) > 1 else ""
+        print(f"  {t['floor']:>4}+  {t['name']:<24} {t.get('abbr', ''):<4} {stages:<10} {t.get('benchmark', '')}")
     print("\nRanking by overall rating:")
     rows = sorted(((S.overall(S.effective(c)[0]), n, c) for n, c in canon["characters"].items()), key=lambda r: -r[0])
     for score, name, c in rows:
@@ -144,6 +168,7 @@ def cmd_status(a, scale, canon):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="bot.py", description="Canon keeper, power scaler and scene reviewer.")
     p.add_argument("--data", help="directory holding scale.json, canon.json and rules.json")
+    p.add_argument("--campaign", "-c", help="use campaigns/<name>/ as the data directory")
     sub = p.add_subparsers(dest="cmd")
 
     def add(name, fn, help_):
@@ -155,8 +180,12 @@ def main(argv=None):
     add("ladder", cmd_ladder, "the tier ladder and the current ranking")
     sp = add("show", cmd_show, "one character's sheet and the evidence behind it")
     sp.add_argument("name"); sp.add_argument("--form")
-    sp = add("tier", cmd_tier, "name the tier of a rating")
-    sp.add_argument("rating", type=float)
+    sp = add("rate", cmd_rate, "convert between a rating and a tier or realm, e.g. `rate SR 7` or `rate 46.7`")
+    sp.add_argument("rating", nargs="+")
+    sp = add("new", cmd_new, "add a character sheet from a tier or realm")
+    sp.add_argument("name"); sp.add_argument("realm"); sp.add_argument("--edge", type=float, default=0)
+    sp.add_argument("--location")
+    add("rules", cmd_rules, "the campaign's house rules, for the reviewer to check by reading")
     for name, fn, h in (("compare", cmd_compare, "judge a matchup"), ("roll", cmd_roll, "judge a matchup and roll it")):
         sp = add(name, fn, h)
         sp.add_argument("a"); sp.add_argument("b")
@@ -177,9 +206,11 @@ def main(argv=None):
     if not getattr(a, "fn", None):
         p.print_help()
         return 0
+    if a.campaign:
+        a.data = C.campaign_dir(a.campaign)
     try:
         scale, canon = C.load("scale.json", a.data), C.load("canon.json", a.data)
         return a.fn(a, scale, canon)
-    except (KeyError, FileNotFoundError) as e:
+    except (KeyError, FileNotFoundError) as e:  # bad name, realm or data directory
         print(f"error: {e.args[0] if isinstance(e, KeyError) else e}", file=sys.stderr)
         return 2

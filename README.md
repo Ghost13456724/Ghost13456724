@@ -5,7 +5,7 @@ A canon keeper for novel-style text games. It scales power from recorded feats, 
 It has two halves:
 
 - **An engine** (`bot.py`, Python standard library only) that does the arithmetic and bookkeeping: power ratings, matchups, dice, continuity checks, prose format checks, and writing reviewed scenes into canon.
-- **Two agent prompts** (`.claude/agents/`) that do the reading: `scene-reviewer` turns a scene's prose into a list of claims and judges it, and `powerscaler` answers strength questions from the evidence.
+- **Three agent prompts** (`.claude/agents/`) that do the reading: `scene-reviewer` turns a scene's prose into a list of claims and judges it, `powerscaler` answers strength questions from the evidence, and `canon-importer` turns prose notes into structured canon.
 
 The reader makes the judgment calls; the engine cannot forget an injury or misremember a stat.
 
@@ -25,7 +25,25 @@ python3 bot.py commit examples/claims_fixed.json   # write a reviewed scene into
 python3 -m unittest discover -s tests
 ```
 
-`data/` ships with a small sample world so every command works out of the box. Replace it with your own, or point at another folder with `--data <dir>` or `NOVELBOT_DATA`.
+`data/` ships with a small sample world so every command works out of the box.
+
+## Campaigns
+
+Each game gets a folder under `campaigns/` with its own ladder, canon and rules. Pick one with `-c`:
+
+```
+python3 bot.py -c martial-peak ladder
+python3 bot.py -c martial-peak rate SR 7           # realm and stage -> rating (46.7)
+python3 bot.py -c martial-peak compare Eyoel "Yao He"
+python3 bot.py -c martial-peak new "Han Xiao Qi" "SR 5" --edge 1
+python3 bot.py -c martial-peak rules               # house rules the reviewer checks by reading
+```
+
+`campaigns/martial-peak/` is a starting point for the Martial Peak game: the realm ladder (ten points per major realm, split across its stages) and a handful of sheets seeded from one memory note. Stats above a realm baseline there are first estimates, and unknown stages are marked as placeholders.
+
+To start another campaign, copy that folder, edit the tiers in `scale.json` (`name`, `abbr`, `floor`, and `stages` for a realm ladder), empty `canon.json`, and run the `canon-importer` agent over the game's notes.
+
+On a realm ladder a character's `realm` is the baseline. A stat above it needs a feat, or `audit` reports it as `above-realm`.
 
 ## How power scaling works
 
@@ -82,7 +100,7 @@ All thresholds live in `data/scale.json`.
 | `no-roll` | a contested fight decided without dice |
 | `active-condition` | a reminder of injuries the prose should show |
 
-Lint covers word count, banned terms, System messages outside `[brackets]`, the closing block of 3 to 4 numbered options with a free-form choice, repeated words and weak phrases.
+Lint covers word count, banned terms, System messages outside `[brackets]`, the required ending (a block of numbered options, or a closing line such as "What do you do?"), repeated words and weak phrases. Rules that need reading, such as content limits, go in `house_rules` and are checked by the reviewer agent.
 
 Event types: `fight`, `feat`, `power_up`, `uses_item`, `uses_ability`, `knows`, `learns`, `reveal`, `injury`, `recovers`, `death`, `travel`, `gains_item`, `loses_item`, `learns_ability`.
 
@@ -92,6 +110,8 @@ In Claude Code, from this repository:
 
 - "Use the scene-reviewer agent on `drafts/s09.md`" returns PASS, REVISE or REJECT with the smallest fix for each finding. It never commits and never edits canon.
 - "Ask the powerscaler: can Seorin beat the Ogre in Second Breath?" or "Give me stats for a rival who should be a hard fight for Seorin."
+
+- "Use the canon-importer agent on these notes for the martial-peak campaign" turns prose notes into sheets, feats, facts and results, and lists every gap it had to leave.
 
 ## Files
 
@@ -103,5 +123,6 @@ novelbot/lint.py        prose and format checks
 data/scale.json         ladder, bands, thresholds
 data/canon.json         characters, feats, facts, results, clock (the bot writes this)
 data/rules.json         style rules for lint
+campaigns/<name>/       one folder per game, same three files as data/
 examples/               a failing scene, the fixed version, and a prose sample
 ```

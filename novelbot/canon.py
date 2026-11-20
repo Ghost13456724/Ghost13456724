@@ -6,6 +6,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.environ.get("NOVELBOT_DATA", os.path.join(ROOT, "data"))
 
 
+def campaign_dir(name):
+    return os.path.join(ROOT, "campaigns", name)
+
+
 def _path(name, data_dir=None):
     return os.path.join(data_dir or DATA, name)
 

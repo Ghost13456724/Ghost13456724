@@ -11,22 +11,56 @@ Stats:
   sta  stamina / energy reserves
   tec  technique (skill; feeds the dice roll, not the raw gap)
 """
+import re
+
 from . import canon as C
 
 STATS = ("ap", "dur", "spd", "sta", "tec")
 BAND_ORDER = ("auto", "trivial", "easy", "even", "hard", "desperate", "beyond", "impossible")
 
 
+def _tiers(scale):
+    return sorted(scale["tiers"], key=lambda t: t["floor"])
+
+
+def _width(tiers, i):
+    return tiers[i + 1]["floor"] - tiers[i]["floor"] if i + 1 < len(tiers) else 10
+
+
 def tier_of(scale, rating):
-    """Name the tier a rating falls in, with low/mid/high placement."""
-    tiers = sorted(scale["tiers"], key=lambda t: t["floor"])
+    """Name where a rating falls: 'mid B-rank', or 'True Element 5' on a staged ladder."""
+    tiers = _tiers(scale)
     if rating < tiers[0]["floor"]:
         return f"below {tiers[0]['name']}"
     i = max(k for k, t in enumerate(tiers) if rating >= t["floor"])
-    width = tiers[i + 1]["floor"] - tiers[i]["floor"] if i + 1 < len(tiers) else 10
-    pos = (rating - tiers[i]["floor"]) / width
+    pos = (rating - tiers[i]["floor"]) / _width(tiers, i)
+    stages = tiers[i].get("stages")
+    if stages:
+        stage = min(stages, int(pos * stages + 0.05) + 1)
+        return tiers[i]["name"] + (f" {stage}" if stages > 1 else "") + (" (beyond)" if pos >= 1 else "")
     place = "low" if pos < 1 / 3 else "mid" if pos < 2 / 3 else "high"
     return f"{place} {tiers[i]['name']}"
+
+
+def parse_rating(scale, text):
+    """Turn 46.7, 'SR 7', 'True Element 5th' or 'B-rank' into a rating."""
+    if isinstance(text, (int, float)):
+        return text
+    text = str(text).strip()
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    m = re.match(r"^(.*?)[\s,]*(?:stage\s*)?(\d+)?(?:st|nd|rd|th)?(?:\s*(?:stage|order|layer))?$", text, re.I)
+    name, stage = m.group(1).strip().lower(), int(m.group(2)) if m.group(2) else 1
+    tiers = _tiers(scale)
+    for i, t in enumerate(tiers):
+        if name in (t["name"].lower(), t.get("abbr", "").lower()):
+            stages = t.get("stages", 1)
+            if not 1 <= stage <= stages:
+                raise KeyError(f"{t['name']} has {stages} stage(s); got {stage}")
+            return round(t["floor"] + (stage - 1) * _width(tiers, i) / stages, 1)
+    raise KeyError(f"unknown tier or realm: {text}")
 
 
 def effective(char, form=None):
@@ -191,9 +225,15 @@ def audit(scale, canon):
             e = ev[s]
             if declared is None:
                 continue
-            if e["supported"] is None:
+            base = parse_rating(scale, char["realm"]) if char.get("realm") else None
+            if e["supported"] is None and base is None:
                 findings.append(("warn", "no-evidence", f"{name} {s} {declared}: no feat on record."))
-            elif declared > e["supported"] + tol:
+            elif e["supported"] is None:
+                if declared > base + tol:
+                    findings.append(("warn", "above-realm", f"{name} {s} is {declared}, {declared - base:+.1f} over the "
+                                     f"{char['realm']} baseline ({base}), with no feat to back it."))
+                continue
+            elif declared > max(e["supported"], base or 0) + tol:
                 findings.append(("error", "inflated", f"{name} {s} is {declared} but feats support {e['supported']} ({e['basis']})."))
             elif declared < e["supported"] - tol:
                 findings.append(("warn", "lowballed", f"{name} {s} is {declared} but feats support {e['supported']}; raise the stat or mark the feat an outlier."))

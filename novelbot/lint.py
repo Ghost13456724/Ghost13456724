@@ -39,6 +39,12 @@ def lint(text, rules):
         if opt.get("free_choice") and not any(re.search(opt["free_choice"], l, re.I) for l in tail):
             add("warn", "free-choice", "The closing options do not offer a free-form choice.")
 
+    ending = rules.get("ending")
+    if ending:
+        tail = "\n".join([l for l in lines if l.strip()][-3:])
+        if not re.search(ending, tail, re.I):
+            add("error", "ending", f"Scene must end with: {ending}")
+
     counts = Counter(w.lower() for w in words if len(w) > 3 and w.lower() not in STOP)
     limit = max(rules.get("repeat_floor", 6), len(words) * rules.get("repeat_ratio", 0.012))
     proper = {w for w in words if w[0].isupper()}

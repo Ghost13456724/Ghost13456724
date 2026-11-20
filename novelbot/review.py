@@ -11,7 +11,16 @@ from . import scale as S
 SEVERITY = {"error": 0, "warn": 1, "note": 2}
 
 
+def _normalize(scale, claims):
+    """Let the reviewer write feat ratings as realms ('TE 3') as well as numbers."""
+    for ev in claims.get("events", []):
+        if ev.get("type") == "feat":
+            ev["rating"] = S.parse_rating(scale, ev["rating"])
+    return claims
+
+
 def check(scale, canon, claims):
+    claims = _normalize(scale, claims)
     out = []
     add = lambda sev, code, msg: out.append((sev, code, msg))
     rules = scale["matchup"]
