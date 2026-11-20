@@ -23,6 +23,7 @@ $B rules add longevity kind=rule text="Pilgrim's Blessing, Longevity: immune to 
 $B rules add death_save kind=rule text="At 0 HP with nobody to stabilise him: one death save, d20 vs DC 11, with a bonus only for something already established in the scene. Decide whether this stands beside the written 0 HP rule" --write
 $B rules add system_rewards kind=lesson text="The System rewards what Mori does without being asked. After every scene, check for a hidden quest he has already fulfilled and pay it then. (The 'Courage to Stay' reward only happened because the player pointed out it was missing.)" --write
 $B rules add growth_unasked kind=lesson text="Skill gains are announced by the GM when they are earned. Run the growth check after every scene. (Mastery 4, Erase the Rhythm and Endurance were only given because the player asked.)" --write
+$B rules add show_evil kind=lesson text="Evil is shown on the page, not softened or summarised: villains act on real reasons, their harm lands on people the reader has met, and consequences last. Weight, not gore. (Player, 2026-11-20.)" --write
 $B rules add xp_sources kind=rule text="XP comes from kills, quests, trials survived and fights won without killing" --write
 ```
 

@@ -11,6 +11,7 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
    `{"id": "kab2", "day": 6, "text": "<what they do, off-screen>", "trace": "<what the world shows afterwards>", "chance": 70, "else_delay": 2, "stops_if": "<what Mori would have to do to prevent it>", "then": [{"after": 3, "text": "...", "trace": "..."}]}`
    - `text` is a concrete action by a named person, never a mood ("grows suspicious" is not a step; "pulls Mori's Gate records" is).
    - `trace` is how it reaches the street: a rumour, a headline, a missing face, a price that changed, a text message. A step with no trace cannot be discovered, so give one unless it must stay invisible.
+   - Antagonists do real harm. The player does not want evil softened: when a faction's goal needs something ugly, its step says what was done and to whom, and the `trace` is a person the story can meet (a family at a ward door, a porter who did not come back, a name on a list). Villains have real reasons and act on them without waiting for Mori.
    - `chance` under 100 when the faction could fail on its own. `stops_if` only when Mori could realistically prevent it.
    - `then` chains the consequence, so plans advance without you.
    - World events fixed by the arc card ([W] beats) go in with `chance` 100 and their `stops_if`.

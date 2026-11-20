@@ -17,7 +17,8 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
    - a deadline or cost he cannot meet from where he is (money, time, the Daily Discipline);
    - a choice where every option leads to the same place;
    - a reward or level-up the beat promises that the rules would not give;
-   - a clue the beat needs that has not been placed.
+   - a clue the beat needs that has not been placed;
+   - an antagonist whose menace is only described: say what the beat should let the player see them do.
 
 ## Output
 At most 10 lines, worst first: where it breaks, for which player, and the smallest change that fixes it. If the beat holds for both players, answer `HOLDS`.

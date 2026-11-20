@@ -21,6 +21,7 @@ After big scenes (boss fights, reveals, trials, act ends) and every ~4 ordinary 
    - **Broken rules or mechanics:** a contested action with no roll, a dice line the tool could not match, a result that ignores the roll, a level or stat gain the System's rules do not give, 0 HP not treated as down and dying, a technique above his mastery used successfully, a power jump with no cost.
    - **Power scale:** for any fight, run `python3 bot.py -g F fight <foe>`. Flag a win the forecast puts under 10% unless the scene shows what changed the odds (allies, a trick, a broken condition), and flag a foe he should beat easily written as a desperate struggle.
    - **Fight-style violations:** each item of the fight-writing checklist the scene breaks, by its number.
+   - **Pulled punches:** the player has said evil may be shown. Flag a scene that softens it: a villain's cruelty reported instead of seen, harm with no victim who has a name or a face, a threat that is never carried out, a monster made safe by a joke, a consequence that vanishes by the next scene. Evil should be specific, have its reasons, and cost someone the reader has met. This is about weight, not gore, and it does not lift any limit the player has set elsewhere.
    - **Plot holes:** something that cannot follow from the previous state.
 4. Also read what the tool reports from the other trackers:
    - a fact surfacing in front of someone "not in the know" (people tracker): an error if that person says it or acts on it;
