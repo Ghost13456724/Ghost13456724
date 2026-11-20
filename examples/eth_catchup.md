@@ -74,7 +74,17 @@ $B sync
 $B ahead
 ```
 
-## 5. The book
+## 5. Leak patterns (GM-side)
+```
+cp novelbot/examples/eth_secrets_watch.json eth/secrets_watch.json
+```
+The scene check then reports any of those names or phrases appearing in a scene before its rung of the reveal ladder. It leaves out every term that is already in the player's bible. The CLUE_KEEPER can add more.
+
+Two notes for the GM from a read of GM_SECRETS against what has been played:
+- The retroactive quest for the temple (section 3) must not be worded as a Tribulation. The Tribulation count is announced later, as the arc card has it.
+- The Daily Discipline's first task is given two ways: the bible and every scene played say 1,000 Hoechook; the rulings section of GM_SECRETS says 1,000 staff spins. Keep what was played, and correct the note or record why it will change.
+
+## 6. The book
 Save the full "story so far" text as `eth/story.md`, then:
 ```
 $B archive import story.md --write
