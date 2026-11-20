@@ -9,6 +9,7 @@ from . import ahead as AH
 from . import beats as BE
 from . import book as B
 from . import clues as CL
+from . import loop as LP
 from . import growth as GR
 from . import people as PE
 from . import rulings as RU
@@ -97,6 +98,11 @@ def main(argv=None):
     sp = sub.add_parser("beats", help="beat tracker: init | status | mark <id> delivered|changed|skipped [note]")
     sp.add_argument("verb", choices=["init", "status", "mark"]); sp.add_argument("args", nargs="*")
     sp.add_argument("--write", action="store_true"); sp.add_argument("--gm", action="store_true")
+    sp = sub.add_parser("setup", help="first-time setup of every tracker, in one go (safe to repeat)")
+    sp.add_argument("--write", action="store_true")
+    sp = sub.add_parser("before", help="what to have in hand before writing the next scene")
+    sp.add_argument("--foe", help="also forecast a fight against this foe")
+    sub.add_parser("after", help="what the scene just played leaves to do")
     sub.add_parser("growth", help="skill growth that is due from what Mori has done, with the System message and gm.py command")
     sp = sub.add_parser("ahead", help="lookahead: what is coming, what he cannot survive or afford, and the honest ways back")
     sp.add_argument("days", nargs="?", type=int, default=3)
@@ -110,8 +116,14 @@ def main(argv=None):
         p.print_help()
         return 0
     try:
+        if a.cmd == "setup":
+            return LP.setup(a.game, a.write)
         g = Game(a.game)
         code = 0
+        if a.cmd == "before":
+            return LP.before(g, a.foe)
+        if a.cmd == "after":
+            return LP.after(g)
         if a.cmd == "fight":
             show_matchup(S.matchup(g, a.foe, a.level, defences=a.defences))
         if a.cmd == "design":

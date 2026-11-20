@@ -1,5 +1,7 @@
 # novelbot
 
+**New here? Read `START_HERE.md` first.** It has the message to paste into the game chat, the one-time setup and the per-turn routine. This file is the reference.
+
 A set of helper bots for novel-style text RPGs that run on a `gm.py` game folder (built for **Equal to Heaven**). They do the jobs the dice engine leaves to the GM's memory:
 
 1. **Power scaling.** Forecasts whole fights, audits foe cards and designs new foes to a target difficulty.
@@ -37,6 +39,8 @@ python3 bot.py -g ../eth all          # state audit + foe audit + check of LAST_
 
 | Command | What it does |
 | --- | --- |
+| `setup` | First-time setup of every tracker in one go (safe to repeat) |
+| `before [--foe <id>]` / `after` | What to have in hand before a scene; what the scene just played leaves to do |
 | `fight <foe> [--level N] [--defences N]` | Odds for each action, what a clean kick does, what the foe's hit costs, then the whole fight replayed 600 times: win rate rested and as Mori is right now |
 | `foes` | Audits every foe card and lists them from easiest to deadliest |
 | `design <role> [--level N] [--name] [--type] [--rank]` | Builds a foe card for the fight you want and prints the `gm.py foe add` line |
@@ -148,7 +152,7 @@ The player never picks the flavour of kick. `techniques.json` holds a card for e
 
 ## The bots
 
-`bots/` holds nine briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK` (which also keeps the beats), `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`, `FIGHT_REFEREE`, `QUEST_KEEPER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
+`bots/` holds ten briefs for helper agents, in the same style as the game's other bot briefs: `SCENE_CHECKER`, `POWERSCALER`, `BOOKKEEPER`, `WORLD_CLOCK` (which also keeps the beats), `CLUE_KEEPER`, `RULINGS_KEEPER`, `ARCHIVIST`, `FIGHT_REFEREE`, `QUEST_KEEPER`, `PLAYTESTER`. (The people tracker has no brief of its own: the bookkeeper writes it and the scene checker reads it.) Spawn one with: "Read `novelbot/bots/BOOKKEEPER.md` and do exactly that. Game folder: `/home/claude/rpg/eth`."
 
 First-time setup in the game chat:
 

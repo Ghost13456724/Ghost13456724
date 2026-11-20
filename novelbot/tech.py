@@ -240,9 +240,11 @@ def missing_cards(game, techs):
     for name, (need, has) in SC.technique_levels(game).items():
         if need <= has and name not in names:
             out.append(f"{name.title()} (opened at mastery {need})")
+    from . import rulings as RU
+    ruled = " ".join(r["text"].lower() for r in RU.load(game)["rulings"])
     for skill in L.get("skills", {}):
         base = re.sub(r"\s*\(.*", "", skill).lower()
-        if "passive" in skill.lower():
+        if "passive" in skill.lower() or re.sub(r"^the ", "", base) in ruled:
             continue                                      # a passive is the rulings keeper's business, not a move
         if "taekwondo" not in base and base not in names and not any(base in (t.get("needs", {}).get("skill", "").lower()) for t in techs.values()):
             out.append(f"{skill} (a skill on the sheet)")

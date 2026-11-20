@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 
-from novelbot import growth as GR, ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
+from novelbot import loop as LP, growth as GR, ahead as AH, archive as AR, beats as BE, book as B, quests as QU, tech as TE, clues as CL, people as PE, rulings as RU, scale as S, scene as SC, sync as SY, world as W
 from novelbot.game import Game, Plan
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
@@ -671,6 +671,28 @@ class GrowthTests(Base):
         self.assertEqual(due, [])
         self.assertIn("Erase the Rhythm: 1 of 6 toward Lv.2", progress)
         self.assertNotIn("skill growth is owed", " ".join(m for _, m in AH.report(self.game(), 1, sims=40)[0]))
+
+
+class LoopTests(Base):
+    def test_setup_builds_every_tracker_and_can_be_repeated(self):
+        self.assertEqual(LP.setup(self.dir, False), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "people.json")))       # dry run wrote nothing
+        self.assertEqual(LP.setup(self.dir, True), 0)
+        for name in ("people.json", "clues.json", "factions.json", "rulings.json", "techniques.json", "beats.json"):
+            self.assertTrue(os.path.exists(os.path.join(self.dir, name)), name)
+        before = {n: self.get(n) for n in ("people.json", "clues.json", "techniques.json", "ledger.json", "beats.json")}
+        self.assertEqual(LP.setup(self.dir, True), 0)
+        self.assertEqual(before, {n: self.get(n) for n in before})
+        g = self.game()
+        self.assertFalse(TE.stale(g, TE.load(g)))
+        self.assertIn("t_lowest_hoechook", [e["id"] for e in g.ledger["effects"]])
+
+    def test_before_and_after_run_on_a_fresh_and_a_set_up_game(self):
+        self.assertEqual(LP.before(self.game()), 0)
+        self.assertEqual(LP.after(self.game()), 1)                                    # nothing is set up: there is work to do
+        LP.setup(self.dir, True)
+        self.assertEqual(LP.before(self.game(), foe="dokkaebi"), 0)
+        self.assertIn(LP.after(self.game()), (0, 1))
 
 
 class AheadTests(Base):

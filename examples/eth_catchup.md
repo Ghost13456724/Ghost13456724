@@ -31,13 +31,13 @@ The hidden quest "The Courage to Stay" paid a blessing and no XP. Record it, the
 ```
 $B quest add courage kind=hidden title="The Courage to Stay" text="Stay so the others can leave." --write
 $B quest done courage --write
-$B quest add wager kind=hidden title="A Wager Honoured" text="Win the dokkaebi's bet and spare it." xp=medium --write
-$B quest add jung kind=hidden title="Not Them" text="Put yourself between the club and the boy." xp=medium --write
-$B quest add temple kind=trial title="The Temple of Five Hundred" text="Walk." xp=trial --write
-$B quest add furnace kind=hidden title="Four Hours" text="Survive the Flaming Mountains." xp=large --write
+$B quest add wager kind=hidden title="A Wager Honoured" text="Win the dokkaebi's bet and spare it." xp=35 --write
+$B quest add jung kind=hidden title="Not Them" text="Put yourself between the club and the boy." xp=35 --write
+$B quest add temple kind=trial title="The Temple of Five Hundred" text="Walk." xp=100 --write
+$B quest add furnace kind=hidden title="Four Hours" text="Survive the Flaming Mountains." xp=60 --write
 $B quest done wager --write ; $B quest done jung --write ; $B quest done temple --write ; $B quest done furnace --write
 ```
-That is 35 + 35 + 100 + 60 XP on top of his 60. Whether to pay all of it, and how the System words it, is the GM's and the player's call.
+These are fixed numbers, sized for the level he was when he earned them (level 1): 35 + 35 + 100 + 60 = 230 XP on top of his 60, which makes him level 2 with 190/200. New quests should use sizes (`xp=medium`) so they scale with his level. Whether to pay all of it, and how the System words it, is the GM's and the player's call.
 
 ## 4. One bookkeeping pass (`delta.json`)
 ```json
