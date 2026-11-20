@@ -502,13 +502,16 @@ class TechTests(Base):
         L = self.get("ledger.json")
         L["skills"]["Limiter Needle"] = "1"
         self.put("ledger.json", L)
-        with open(os.path.join(self.dir, "SKILL_TREES.md"), "a") as f:
-            f.write("- M2 **Baekdu Chain** (two kicks)\n")
+        path = os.path.join(self.dir, "SKILL_TREES.md")
+        text = open(path).read().replace("\n## 2.", "- M2 **Baekdu Chain** (two kicks)\n\n## 2.")   # into the Taekwondo tree
+        with open(path, "w") as f:
+            f.write(text)
         g = self.game()
         miss = " | ".join(TE.missing_cards(g, TE.load(g)))
         self.assertIn("Baekdu Chain (opened at mastery 2)", miss)
         self.assertIn("Limiter Needle (a skill on the sheet)", miss)
         self.assertNotIn("True Hoechook", miss)                                                    # mastery 7: not his yet
+        self.assertNotIn("Iron Sweep", miss)                                                       # another art, which he has not begun
         weak = TE.options(g, g.sheet(), TE.load(g), "hit", "stone_guard")[0]["R"]["p"]
         strong = TE.options(g, g.sheet(level=40), TE.load(g), "hit", "stone_guard")[0]["R"]["p"]
         self.assertGreater(strong, weak)
