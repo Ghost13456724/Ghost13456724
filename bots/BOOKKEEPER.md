@@ -9,6 +9,7 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 2. Do first what only gm.py may do, if the GM has not already: dice (`roll ... --apply`), XP, level-ups, stat points, a new day (`gm.py day +1`). Those carry rules. Never change HP for a rolled hit yourself; `--apply` did it.
 3. Write the scene's other changes as a delta file (`python3 bot.py book template` shows every field). Use only the fields the scene needs:
    - `time`, `where`, `with` (who is in the room at the end), `now` (one line), `pending` (the choice in front of the player).
+   - `realm` when the scene is set outside Earth (`"The Murim"`, `"Below"`, a Dominion), with `realm_day` (`"=1"`, `"+3"`) and `tide` (how its time is running against Earth's). Set `"realm": "Earth"` when he is back.
    - `hp`, `fatigue`, `won`: only for changes no roll applied (healing, a fee, a meal, rest). Write them as `"-12"`, `"+30"` or `"=47"`.
    - `items_add`, `items_remove`: anything picked up, given away, used up, broken, lost.
    - `injuries_add`: every injury gets a roll penalty, `-1` for one that hinders, `-2` for a broken limb or worse, `0` only for a mark that changes nothing. `injuries_heal` when treated or healed.

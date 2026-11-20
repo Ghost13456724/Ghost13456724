@@ -53,16 +53,57 @@ def bible_topics(game):
     return out
 
 
+HOME = "Earth"
+# bible section title -> the realm its contents belong to; sections marked True also list visitable places
+REALM_SECTIONS = [("Places", HOME, True), ("Elsewhere", HOME, True), ("The Saha World", "Saha", False),
+                  ("The Dominions", "The Dominions", False), ("Below", "Below", False), ("The Murim", "The Murim", False)]
+
+
+def section(text, title):
+    m = re.search(rf"^## (?:[IVXL]+\. )?{re.escape(title)}\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m.group(1) if m else ""
+
+
+def lead_terms(body):
+    """Lines that open with a bolded name: ('The Celestial Court', the whole line, is_bullet)."""
+    for line in body.splitlines():
+        m = re.match(r"(\s*-\s+)?(?:the |a |an )?\*\*([^*]+?)[.,:]?\*\*", line, re.I)
+        if m:
+            yield m.group(2).strip(), re.sub(r"\*\*|^\s*-\s*", "", line).strip(), bool(m.group(1)), len(line) - len(line.lstrip())
+
+
 def init(game, data):
-    """Seed places from the bible's Places section."""
-    m = re.search(r"^## [IVXL]+\. Places\s*$(.*?)(?=^## |^---|\Z)", bible(game), re.M | re.S)
-    added = 0
-    for line in (m.group(1) if m else "").splitlines():
-        for name in re.findall(r"\*\*([^*]+?)\.?\*\*", line):
-            if name not in data["places"]:
-                data["places"][name] = {"desc": re.sub(r"\*\*|^\s*-\s*", "", line).strip(), "details": [], "regulars": [], "changes": []}
+    """Seed every realm the player's bible describes: Earth's places, and the cards for Saha, the Dominions,
+    the realms below and the Murim (what each is, its rules, its powers)."""
+    text, added = bible(game), 0
+    realms = data.setdefault("realms", {})
+    for title, realm, has_places in REALM_SECTIONS:
+        body = section(text, title)
+        if not body:
+            continue
+        card = realms.setdefault(realm, {"desc": "", "entries": [], "clock": None})
+        if not card["desc"] and not has_places:
+            card["desc"] = next((re.sub(r"\*\*", "", l).strip() for l in body.splitlines() if l.strip() and not l.startswith(("-", "|", "**"))), "")
+        have = {e["term"] for e in card["entries"]}
+        for name, line, bullet, indent in lead_terms(body):
+            if has_places:
+                for nm in re.findall(r"\*\*([^*]+?)\.?\*\*", line if False else next(l for l in body.splitlines() if name in l)):
+                    if nm not in data["places"]:
+                        data["places"][nm] = {"realm": realm, "desc": line, "details": [], "regulars": [], "changes": []}
+                        added += 1
+            elif name not in have:
+                card["entries"].append({"term": name, "text": line[:400], "kind": "named" if bullet else "how it works"})
+                have.add(name)
                 added += 1
+    realms.setdefault(HOME, {"desc": "", "entries": [], "clock": None})
+    for p in data["places"].values():
+        p.setdefault("realm", HOME)
     return added
+
+
+def realm_now(game):
+    from . import book as B
+    return B.scene_state(game).get("realm") or HOME
 
 
 def scenes(game):
@@ -89,9 +130,13 @@ def add(game, data, term, fields, plan):
     if not fields.get("text"):
         return plan.error("text=... is required: the detail exactly as the story established it")
     place = fields.get("place")
+    realm = fields.get("realm") or realm_now(game)
+    if fields.get("realm") and realm not in data.setdefault("realms", {}):
+        data["realms"][realm] = {"desc": "", "entries": [], "clock": None}
+        plan.note(f"realm + {realm}")
     if kind == "place" and term not in data["places"]:
-        data["places"][term] = {"desc": fields["text"], "details": [], "regulars": [], "changes": []}
-        return plan.note(f"place + {term}")
+        data["places"][term] = {"realm": realm, "desc": fields["text"], "details": [], "regulars": [], "changes": []}
+        return plan.note(f"place + {term} ({realm})")
     if place:
         key = find_place(data, place)
         if not key:
@@ -100,7 +145,7 @@ def add(game, data, term, fields, plan):
         data["places"][key][slot].append(f"{term}: {fields['text']}" if kind == "person" else fields["text"])
         plan.note(f"{key}: {slot[:-1]} + {fields['text'][:70]}")
     data["entries"].append({"id": f"L{len(data['entries']) + 1}", "kind": kind, "term": term, "text": fields["text"],
-                            "place": place, "source": fields.get("source", game.stamp())})
+                            "realm": realm, "place": place, "source": fields.get("source", game.stamp())})
     plan.note(f"lore + [{kind}] {term}")
 
 
@@ -135,11 +180,13 @@ def unseen(game, limit=12):
     return out
 
 
-def callbacks(game, data, limit=3):
-    """Recorded details the story has gone longest without touching."""
+def callbacks(game, data, limit=3, realm=None):
+    """Recorded details the story has gone longest without touching (those of the realm he is in)."""
     sc = scenes(game)
     rows = []
     for e in data["entries"]:
+        if realm and e.get("realm", HOME) != realm:
+            continue
         n, last = _uses(sc, e["term"] + " " + e["text"])
         rows.append((last or 0, n, e))
     rows.sort(key=lambda r: (r[0], r[1]))
@@ -170,11 +217,27 @@ def ambient(game, data, place=None, gm=False):
     L, rows = game.ledger, []
     date = game.date_of(L["day"])
     w = weather(game, L["day"])
-    rows.append(f"WHEN  D{L['day']}" + (f" {date.strftime('%A %d %B %Y')}" if date else "") + f", {L.get('time', '')} ({daypart(L.get('time'))})"
-                + (" — a weekend" if date and date.weekday() >= 5 else ""))
-    rows.append(f"SKY   {w['sky']}, {w['low']} to {w['high']} C" + (f" (yesterday: {w['yesterday']})" if w["yesterday"] != w["sky"] else " (same as yesterday)"))
-    where = place or B.scene_state(game).get("where") or ""
+    state = B.scene_state(game)
+    where = place or state.get("where") or ""
     key = find_place(data, where) if where else None
+    realm = (data["places"][key].get("realm") if key and place else None) or state.get("realm") or HOME
+    rows.append(f"WHEN  D{L['day']}" + (f" {date.strftime('%A %d %B %Y')}" if date else "") + f", {L.get('time', '')} ({daypart(L.get('time'))})"
+                + (" — a weekend" if date and date.weekday() >= 5 else "") + (" on Earth" if realm != HOME else ""))
+    if realm == HOME:
+        rows.append(f"SKY   {w['sky']}, {w['low']} to {w['high']} C" + (f" (yesterday: {w['yesterday']})" if w["yesterday"] != w["sky"] else " (same as yesterday)"))
+    else:
+        card = data.get("realms", {}).get(realm, {"desc": "", "entries": [], "clock": None})
+        rows.append(f"REALM {realm}: {card['desc'][:200]}")
+        clock = state.get("realm_clock", {}).get(realm)
+        rows.append(f"      its own clock: " + (f"day {clock['day']} there" + (f"; the tide: {clock['tide']}" if clock.get("tide") else "") if clock else
+                    "not started. Earth's date and Incheon's weather do not apply here: set its day, season and sky once (`book apply` with realm_day, tide) and keep them"))
+        for e in [e for e in card["entries"] if e["kind"] == "how it works"][:5]:
+            rows.append(f"      rule of this realm: {e['text'][:170]}")
+        powers = [e["term"] for e in card["entries"] if e["kind"] != "how it works"]
+        if powers:
+            rows.append("      named in the bible for this realm: " + ", ".join(powers[:16]))
+        local = [k for k, p in data["places"].items() if p.get("realm") == realm]
+        rows.append("      places established here: " + (", ".join(local) if local else "none yet; record each one the story visits (`lore add \"<name>\" kind=place realm=\"" + realm + "\" text=...`)"))
     if key:
         p = data["places"][key]
         rows.append(f"PLACE {key}: {p['desc']}")
@@ -193,13 +256,17 @@ def ambient(game, data, place=None, gm=False):
             and x.get("status") == "alive"]
     if near:
         rows.append("NEAR  " + ", ".join(near) + " (recorded as being here)")
-    for e, n, last in callbacks(game, data):
+    for e, n, last in callbacks(game, data, realm=realm):
         rows.append(f"BRING BACK  [{e['kind']}] {e['term']}: {e['text'][:110]}" + (f" (last in scene {last})" if last else " (not seen since it was recorded)"))
     un = unseen(game)
     street = ("korea", "places", "crack", "powers that be", "bestiary", "cup", "people", "elsewhere", "awakening", "contracts", "treasures")
+    if realm != HOME:
+        street = (realm.lower().replace("the ", ""),) + street                               # where he is comes first
     rank = lambda sec: next((i for i, k in enumerate(street) if k in sec.lower()), 99)     # everyday lore before cosmology
     order = sorted(un.items(), key=lambda kv: (rank(kv[0]), -len(kv[1])))
     pick = [order[(L["day"] + i) % max(1, min(len(order), 6))] for i in range(min(2, len(order)))]
+    if realm != HOME and order:
+        pick = [order[0]] + [x for x in pick if x[0] != order[0][0]][:1]                    # this realm's own lore first
     for section, items in pick:
         t = items[(L["day"] * 7 + len(items)) % len(items)]
         rows.append(f"UNSEEN LORE  ({section}) {t['term']}: {t['line'][:150]}")

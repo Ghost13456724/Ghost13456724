@@ -33,6 +33,27 @@ def init(game):
                 goal = re.sub(r"\*\*", "", cells[2]) if line.lstrip().startswith("|") and len(cells) >= 3 else ""
                 data["factions"][fid] = {"name": b.group(1).strip(), "goal": goal, "steps": []}
                 added.append(b.group(1).strip())
+    from . import lore as LO
+    def seed(name, realm, goal=""):
+        fid = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+        if fid and fid not in data["factions"] and not re.match(r"(and|or|the rest)\b", name, re.I):
+            data["factions"][fid] = {"name": name, "realm": realm, "goal": goal, "steps": []}
+            added.append(name)
+    for title, realm in (("The Dominions", "The Dominions"), ("Below", "Below")):
+        for name, line, bullet, indent in LO.lead_terms(LO.section(bible, title)):
+            if not bullet:
+                seed(name, realm)
+    powers = False
+    for line in LO.section(bible, "The Murim").splitlines():                    # the top-level bullets under 'The great powers'
+        if re.match(r"\*\*The great powers", line):
+            powers = True
+        elif powers and re.match(r"\*\*", line):
+            powers = False
+        m = re.match(r"- \*\*([^*]+?)[,.:]?\*\*", line)
+        if powers and m:
+            seed(m.group(1).strip(), "The Murim")
+    for f in data["factions"].values():
+        f.setdefault("realm", "Earth")
     return data, added
 
 
@@ -44,20 +65,28 @@ def pending(data):
 
 
 def status(game, data, gm=False, ahead=7):
-    day, rows, finds = game.ledger["day"], [], []
+    day, rows, finds, far = game.ledger["day"], [], [], []
+    from . import lore as LO
+    near = {"Earth", LO.realm_now(game)}                    # only powers where the story is are chased for an agenda
     for fid, f in data["factions"].items():
         todo = sorted((s for s in f.get("steps", []) if not s.get("done")), key=lambda s: s["day"])
         done = sum(1 for s in f.get("steps", []) if s.get("done"))
         nxt = f"next D{todo[0]['day']}" if todo else "nothing planned"
-        rows.append(f"  {f['name']:<28} {done} done, {len(todo)} planned, {nxt}" + (f" | goal: {f.get('goal', '')}" if gm else ""))
+        rows.append(f"  [{f.get('realm', 'Earth')}] {f['name']:<28} {done} done, {len(todo)} planned, {nxt}" + (f" | goal: {f.get('goal', '')}" if gm else ""))
         if gm:
             for s in todo:
                 rows.append(f"      D{s['day']} {s['id']}: {s['text']}" + (f" [stops if: {s['stops_if']}]" if s.get("stops_if") else ""))
         if not todo:
-            finds.append(("WARN", f"{f['name']} has nothing planned: off-screen it is standing still"))
+            if f.get("realm", "Earth") in near or f.get("steps"):
+                finds.append(("WARN", f"{f['name']} has nothing planned: off-screen it is standing still"))
+            else:
+                far.append(f["name"])
         for s in todo:
             if s["day"] < day:
                 finds.append(("WARN", f"{f['name']} had a step due D{s['day']} that never ran: run `world tick`"))
+    if far:
+        finds.append(("NOTE", f"{len(far)} powers of other realms have no agenda yet. Give one a step when the story should feel it "
+                      "(an omen, a Gate that opens wrong, a god's Vessel acting), and all of a realm's when Mori goes there"))
     if not data["factions"]:
         finds.append(("WARN", "no factions: run `world init`, then have the world-clock bot write their agendas"))
     soon = [e for e in game.events if isinstance(e.get("day"), (int, float)) and day <= e["day"] <= day + ahead and not e.get("done")]

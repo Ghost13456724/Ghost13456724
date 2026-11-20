@@ -20,9 +20,10 @@ ROLES = {  # the fight each role should give a rested Mori alone, and the shape 
 }
 
 
-def rank_of(index):
-    name = LADDER["ranks"][0]["name"]
-    for r in LADDER["ranks"]:
+def rank_of(index, ladder="ranks"):
+    """ladder: 'ranks' for Earth's KAB scale, 'murim' for the Murim's realms."""
+    name = LADDER[ladder][0]["name"]
+    for r in LADDER[ladder]:
         if index >= r["from"]:
             name = r["name"]
     return name
@@ -256,11 +257,13 @@ def design(game, role, level=None, name="New Foe", ftype="beast", rank=None, sim
                     "notes": f"designed as {role} for a Lv{L['level']} Mori"}
 
         if rank:
-            band = next((r for r in LADDER["ranks"] if r["name"].lower() == rank.lower()), None)
+            band = next((r for lad in ("ranks", "murim") for r in LADDER[lad] if r["name"].lower() == rank.lower()), None)
             if not band:
                 raise KeyError(f"unknown rank '{rank}'")
+            lad = next(l for l in ("ranks", "murim") if band in LADDER[l])
+            nxt = next((r["from"] for r in LADDER[lad] if r["from"] > band["from"]), band["from"] * 1.7)
             base = card(1.0)
-            best = card(band["from"] * 1.35 / (base["SPD"] * base["ATK"]) ** 0.5)   # middle of the band
+            best = card((band["from"] + nxt) / 2 / (base["SPD"] * base["ATK"]) ** 0.5)   # middle of the band
             best["notes"] = f"{band['name']} {role}"
         else:
             best, gap = None, None

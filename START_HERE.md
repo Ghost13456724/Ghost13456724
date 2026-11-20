@@ -16,7 +16,7 @@ python3 novelbot/bot.py -g eth setup            # dry run: read it
 python3 novelbot/bot.py -g eth setup --write
 ```
 
-That builds every tracker from the game's own files: date fixes, the cast, the clue ladder, the factions, rulings and lessons from the log, technique cards (installed into gm.py), the planned beats, and the places.
+That builds every tracker from the game's own files: date fixes, the cast, the clue ladder, the factions, rulings and lessons from the log, technique cards (installed into gm.py), the planned beats, and the lore: Earth's places plus a card for each other realm (Saha, the Dominions, Below, the Murim) with the powers that live there.
 
 ## 3. Bring the files level with the story
 
@@ -86,4 +86,4 @@ Nothing is written without `--write`, every write keeps a backup in `eth/.novelb
 
 ## Numbers that are proposals, not canon
 
-Change them freely: the rank bands (`novelbot/ranks.json`), the technique cards and how they grow (`eth/techniques.json`), the growth thresholds (`eth/growth.json`, copy the defaults from `novelbot/growth.py`), the quest XP sizes (`novelbot/quests.py`), and the foe-designer win-rate targets (`novelbot/scale.py`).
+Change them freely: the rank bands for Earth and for the Murim (`novelbot/ranks.json`), the technique cards and how they grow (`eth/techniques.json`), the growth thresholds (`eth/growth.json`, copy the defaults from `novelbot/growth.py`), the quest XP sizes (`novelbot/quests.py`), and the foe-designer win-rate targets (`novelbot/scale.py`).

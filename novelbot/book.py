@@ -20,7 +20,7 @@ from .game import Plan
 
 EXTRA_SAVE = ["lore.json", "growth.json", "techniques.json", "fight.json", "quests.json", "beats.json", "rulings.json", "people.json", "clues.json", "factions.json", "scene_state.json", "secrets_watch.json",
               "review_rules.json", "LAST_SCENES.md", "SKILL_TREES.md"]
-KEYS = {"day", "time", "where", "with", "now", "pending", "threads_add", "threads_done", "hp", "fatigue", "won", "gold",
+KEYS = {"realm", "realm_day", "tide", "day", "time", "where", "with", "now", "pending", "threads_add", "threads_done", "hp", "fatigue", "won", "gold",
         "items_add", "items_remove", "injuries_add", "injuries_heal", "memories_lost", "events_add", "events_done",
         "people", "facts", "clues_placed", "log"}
 
@@ -45,7 +45,9 @@ def render_state(game, L, S, people, clue_data, events):
     when = f"D{L['day']}" + (f" {date.strftime('%a %d %b %Y')}" if date else "") + f" {L.get('time', '')}"
     hp = f"HP {L['hp']}/{L['hp_max']}" + (" (DOWN, dying)" if L["hp"] <= 0 else "")
     out = [f"# STATE NOW — {L.get('flags', {}).get('world', 'game')}  (written by `bot.py book`; numbers live in ledger.json)",
-           f"{when.strip()} | {S.get('where') or '?'} | with: {', '.join(S.get('with') or ['alone'])}",
+           f"{when.strip()} | {S.get('where') or '?'} | with: {', '.join(S.get('with') or ['alone'])}"
+           + (f" | REALM: {S['realm']}" + (f", day {S['realm_clock'][S['realm']]['day']} there" if S.get('realm_clock', {}).get(S['realm']) else "")
+              if S.get("realm") and S["realm"] != "Earth" else ""),
            f"Mori: Lv {L['level']}, {hp}, MP {L['mp']}/{L['mp_max']}, fatigue {L.get('fatigue', 0)} | "
            f"XP {L.get('xp', 0)}/{100 * L['level']} | won {L.get('won', 0):,} | unspent points {L.get('points', 0)}"]
     inj = L.get("injuries", [])
@@ -101,9 +103,22 @@ def apply(game, delta, write=False):
             L["time"] = delta["time"]
     game.ledger["time"] = L.get("time", "")           # stamps for this delta use the scene's own time
     stamp = game.stamp()
-    for k in ("where", "with", "now", "pending"):
+    for k in ("where", "with", "now", "pending", "realm"):
         if k in delta:
             S[k] = delta[k]
+    if "realm" in delta:
+        plan.note(f"realm -> {delta['realm']}")
+    if "realm_day" in delta or "tide" in delta:                 # other realms keep their own calendar
+        realm = S.get("realm") or "Earth"
+        if realm == "Earth":
+            plan.error("realm_day and tide belong to another realm: set \"realm\" first")
+        else:
+            clock = S.setdefault("realm_clock", {}).setdefault(realm, {"day": 0, "tide": ""})
+            if "realm_day" in delta:
+                clock["day"] = _num(clock["day"], delta["realm_day"], 0)
+            if "tide" in delta:
+                clock["tide"] = delta["tide"]
+            plan.note(f"{realm}: day {clock['day']} there" + (f"; tide: {clock['tide']}" if clock["tide"] else ""))
     S["threads"] = [t for t in S.get("threads", []) if not any(d.lower() in t.lower() for d in delta.get("threads_done", []))]
     S["threads"] += [t for t in delta.get("threads_add", []) if t not in S["threads"]]
     if "hp" in delta:

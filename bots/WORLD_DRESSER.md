@@ -13,6 +13,13 @@ Run `python3 bot.py -g F ambient "<place>"` (add `--gm` for the world-clock trac
 5. **The wider world.** If the world clock has a trace waiting, say where it could surface here (a headline, a rumour, a missing face).
 6. **What changed.** If Mori has been here before, one thing is different. Places do not wait for him.
 
+## The other realms
+The world is more than Earth. `python3 bot.py -g F lore places` lists every realm the bible describes (Saha, the Dominions, the realms below, the Murim, Earth abroad) with what is recorded for each.
+- **While Mori is on Earth, the other realms still show.** They reach the street as omens, Gate interiors, Vessels and their gods' habits, news from abroad, what Descenders say when they wake. Use an UNSEEN LORE line from another realm now and then, always through something a person on Earth would meet.
+- **When Mori is in another realm**, tell the bookkeeper to set it (`"realm": "The Murim"` in the delta, with `realm_day` and `tide`). `ambient` then drops Earth's weather and gives that realm's card: how it works, who holds power there, its own day count, and its lore first. Earth's date still runs: say what the tide means for the people waiting at home.
+- **Each realm keeps its own facts.** Set its season, sky and calendar once and record them (`lore add ... realm="The Murim"`). Record every place the story visits there as `kind=place realm="..."`, with its regulars and details, exactly as on Earth. A realm's rules of time, death, power and names (the "rule of this realm" lines) are binding on every scene set in it.
+- **Strength is named differently there.** `python3 bot.py -g F rank` shows both Earth's ranks and the Murim's realms; `design <role> --rank Peak` builds a foe on the Murim's ladder.
+
 ## How lore should reach the player
 - People talk about what affects them: rent, shifts, Gate forecasts, guild gossip, who got hurt, what things cost. They get details wrong and disagree.
 - Objects carry history: licences, tags, signs, uniforms, apps, receipts, graffiti, memorials, what is sold at a stall and what no longer is.

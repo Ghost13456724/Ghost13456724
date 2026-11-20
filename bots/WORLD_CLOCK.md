@@ -22,6 +22,9 @@ Folder: the game folder you were given (for Equal to Heaven, `/home/claude/rpg/e
 3. `python3 bot.py -g F world status --gm`. Give the GM the fresh traces, each with one suggestion of where Mori could meet it in the next scenes (a phone, a market stall, a hospital corridor). When a trace is used in a scene, mark it: `python3 bot.py -g F world seen <trace id> --write`.
 4. If a faction has nothing planned, write its next steps. If nothing at all is scheduled for the next week, the pace has stalled: add something with a date.
 
+## Powers of the other realms
+`world init` also seeds the powers the bible names in the Dominions, the realms below and the Murim, each tagged with its realm. They are not chased for an agenda while the story is far from them. Give one a step when Earth should feel it: its `trace` is how it shows on Earth (a Gate that opens wrong, a Vessel acting for its god, a rumour from Descenders). When Mori enters a realm, give every power there its next steps, and remember its clock: with the tide, a week on Earth can be months of moves there.
+
 ## Planned beats
 The arc card's beats "happen unless Mori changes them". `F/beats.json` records which have.
 - Once per arc: `python3 bot.py -g F beats init --write`, then mark everything already played.

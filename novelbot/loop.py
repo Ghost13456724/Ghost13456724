@@ -68,7 +68,7 @@ def setup(folder, write):
     def lore(g, plan):
         data = LO.load(g)
         n = LO.init(g, data)
-        plan.note(f"{len(data['places'])} places ({n} new)")
+        plan.note(f"{len(data.get('realms', {}))} realms, {len(data['places'])} places ({n} new entries)")
         plan.put_json("lore.json", data)
 
     print("SETUP" + ("" if write else " (dry run: add --write)"))

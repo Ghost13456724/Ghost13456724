@@ -144,8 +144,11 @@ def main(argv=None):
                 for e, n, last in LO.callbacks(g, data, 8):
                     print(f"  {e['id']} [{e['kind']}] {e['term']}: {e['text'][:90]} | seen in {n} scene(s)" + (f", last scene {last}" if last else ""))
             elif v == "places":
-                for k, pl in data["places"].items():
-                    print(f"  {k}: {len(pl['details'])} details, {len(pl['regulars'])} regulars, {len(pl['changes'])} changes")
+                for realm, card in data.get("realms", {}).items():
+                    here = {k: pl for k, pl in data["places"].items() if pl.get("realm", "Earth") == realm}
+                    print(f"  {realm}: {len(card['entries'])} lore entries, {len(here)} places" + (f" | {card['desc'][:90]}" if card["desc"] else ""))
+                    for k, pl in here.items():
+                        print(f"      {k}: {len(pl['details'])} details, {len(pl['regulars'])} regulars, {len(pl['changes'])} changes")
             if v in ("init", "add"):
                 plan.put_json("lore.json", data)
                 return plan.finish(a.write)
@@ -166,10 +169,10 @@ def main(argv=None):
             print(f"\nadd it with:\n  python3 gm.py foe add {fid} '{json.dumps(card, ensure_ascii=False)}'")
         if a.cmd == "rank":
             idx = S.mori_index(g.ledger)
-            print(f"Jin Mori Lv{g.ledger['level']}: index {idx} -> {S.rank_of(idx)}")
+            print(f"Jin Mori Lv{g.ledger['level']}: index {idx} -> {S.rank_of(idx)} on Earth; {S.rank_of(idx, 'murim')} by the Murim's measure (body alone, no gi)")
             rows = sorted(((S.foe_index(f) or 0, k, f) for k, f in g.foes.items()), key=lambda r: r[0])
             for i, k, f in rows:
-                print(f"  {i:>8}  {S.rank_of(i):<15} {f.get('name', k)} [{f.get('type', '?')}]")
+                print(f"  {i:>8}  {S.rank_of(i):<15} {S.rank_of(i, 'murim'):<15} {f.get('name', k)} [{f.get('type', '?')}]")
             print("(bands are a proposed ruling in novelbot/ranks.json; edit them there)")
         if a.cmd in ("sync", "all"):
             finds = SY.audit(g)

@@ -212,7 +212,7 @@ class WorldTests(Base):
     def setUp(self):
         super().setUp()
         data, added = W.init(self.game())
-        self.assertEqual(added, ["Harbour Union", "The Bureau"])
+        self.assertEqual(added[:2], ["Harbour Union", "The Bureau"])
         self.assertEqual(data["factions"]["harbour_union"]["goal"], "The port")
         data["factions"]["harbour_union"]["steps"] = json.loads(json.dumps(self.STEPS))
         self.put("factions.json", data)
@@ -718,6 +718,53 @@ class LoreTests(Base):
         plan.finish(True)
         g = self.game()
         self.assertLess(sum(len(v) for v in LO.unseen(g).values()), before)
+
+    REALMS = ("\n## II. The Dominions\n\nEvery god was real.\n\n**The Celestial Court** (Heaven of the Jade Emperor). It governs.\n"
+              "- **Nezha**, the child-god on wheels of fire\n\n**And the rest.** Many more.\n"
+              "\n## XII. The Murim\n\nYou have never Descended.\n\n**Time.** Time runs faster there. It is called **the tide**.\n"
+              "\n**The great powers.**\n- **The Orthodox Alliance**, the Nine Great Sects:\n  - **Shaolin** keeps the oldest manuals.\n"
+              "- **The Dark Heaven:** a cult.\n\n**Dream-guests.** Villagers leave rice cakes.\n"
+              "\n## XV. Elsewhere\n\n- **Japan**'s Gates open onto the river of the dead.\n")
+
+    def test_other_realms_are_seeded_and_dress_the_scene(self):
+        with open(os.path.join(self.dir, "BIBLE.md"), "a") as f:
+            f.write(self.REALMS)
+        self.build()
+        data = self.get("lore.json")
+        self.assertEqual(set(data["realms"]), {"Earth", "The Dominions", "The Murim"})
+        self.assertEqual(data["places"]["Japan"]["realm"], "Earth")
+        murim = {e["term"]: e["kind"] for e in data["realms"]["The Murim"]["entries"]}
+        self.assertEqual(murim["Time"], "how it works")
+        self.assertEqual(murim["Shaolin"], "named")
+        wd, added = W.init(self.game())
+        realms = {f["name"]: f["realm"] for f in wd["factions"].values()}
+        self.assertEqual(realms["The Celestial Court"], "The Dominions")
+        self.assertEqual(realms["The Dark Heaven"], "The Murim")
+        self.assertEqual(realms["Harbour Union"], "Earth")
+        self.assertNotIn("And the rest", realms)
+        self.assertNotIn("Shaolin", realms)                                       # a member of the Alliance, not a top-level power
+        self.put("factions.json", wd)
+        g = self.game()
+        text = " | ".join(m for _, m in W.status(g, W.load(g))[1])
+        self.assertIn("Harbour Union has nothing planned", text)
+        self.assertNotIn("The Dark Heaven has nothing planned", text)             # far away: one note, not a chase
+        self.assertIn("powers of other realms have no agenda yet", text)
+        B.apply(self.game(), {"realm": "The Murim", "where": "a mountain road", "realm_day": "=1", "tide": "a night is a month"}, write=True)
+        g = self.game()
+        self.assertIn("The Dark Heaven has nothing planned", " | ".join(m for _, m in W.status(g, W.load(g))[1]))
+        sheet = "\n".join(LO.ambient(g, LO.load(g)))
+        for want in ("on Earth", "REALM The Murim: You have never Descended", "day 1 there; the tide: a night is a month",
+                     "rule of this realm: Time.", "named in the bible for this realm: The Orthodox Alliance", "UNSEEN LORE  (The Murim)"):
+            self.assertIn(want, sheet)
+        self.assertNotIn("SKY", sheet)                                            # Incheon's weather does not follow him
+        self.assertIn("REALM: The Murim, day 1 there", self.get("STATE_NOW.md"))
+        self.assertEqual(B.apply(self.game(), {"realm": "Earth", "realm_day": "+1"}, write=True), 1)
+
+    def test_murim_ladder(self):
+        self.assertEqual(S.rank_of(40), "B-rank")
+        self.assertEqual(S.rank_of(40, "murim"), "Peak")                          # the bible's anchor: Peak fights B-rank as an equal
+        card, _ = S.design(self.game(), "even", rank="First-rate", sims=40)
+        self.assertEqual(S.rank_of(S.foe_index(card), "murim"), "First-rate")
 
     def test_weather_is_a_fact_and_ambient_has_every_part(self):
         self.build()
